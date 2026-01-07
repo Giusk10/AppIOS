@@ -12,9 +12,19 @@ struct AuthView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
+                Image("SpendyLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                
+                Text("Spendy")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+                
                 Text(isLoginMode ? "Welcome Back" : "Create Account")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                    .font(.title2)
+                    .foregroundColor(.secondary)
                 
                 TextField("Username", text: $username)
                     .textFieldStyle(RoundedBorderTextFieldStyle())

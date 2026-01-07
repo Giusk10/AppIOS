@@ -44,14 +44,22 @@ class SyncWorker {
             for expense in pendingExpenses {
                 if expense.syncStatus == 1 { // Pending Add
                     // Post to backend
-                    let dto = expense.toDTO()
-                    // If we need to exclude ID for new creation or backend ignores it.
-                    // Assuming backend adds and returns new object or we just send it.
-                    // Spec: POST /addExpense Body compatible with model.
-                    if let _ = try? await NetworkManager.shared.performRequest(endpoint: "/Expense/rest/expense/addExpense", method: "POST", body: JSONEncoder().encode(dto), responseType: ExpenseDTO.self) {
+                    // Backend expects Map<String, String>, so we must convert everything to String
+                    let body: [String: String] = [
+                        "type": expense.type,
+                        "product": expense.product,
+                        "startedDate": expense.startedDate ?? "",
+                        "completedDate": expense.completedDate ?? "",
+                        "description": expense.userDescription,
+                        "amount": String(expense.amount),
+                        "fee": String(expense.fee ?? 0.0),
+                        "currency": expense.currency ?? "EUR",
+                        "state": expense.state ?? "",
+                        "category": expense.category ?? ""
+                    ]
+                    
+                    if let _ = try? await NetworkManager.shared.performRequest(endpoint: "/Expense/rest/expense/addExpense", method: "POST", body: JSONSerialization.data(withJSONObject: body), responseType: ExpenseDTO.self) {
                          expense.syncStatus = 0
-                        // update remoteId if returned? Assuming for now we rely on Pull to get it or backend doesn't return ID in body but we should refresh.
-                        // Ideally we get the ID back.
                     }
                 } else if expense.syncStatus == 2 { // Pending Delete
                     if let remoteId = expense.remoteId {

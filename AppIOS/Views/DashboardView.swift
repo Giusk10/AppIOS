@@ -4,7 +4,6 @@ import SwiftData
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.startedDate, order: .reverse) private var expenses: [Expense]
-    @State private var showDeleteConfirmation = false
     
     // Computed property for total balance
     var totalBalance: Double {
@@ -42,9 +41,7 @@ struct DashboardView: View {
                     }
                     .listStyle(.plain)
                     .refreshable {
-                        if let context = modelContext {
-                            await SyncWorker.shared.sync(context: context)
-                        }
+                        await SyncWorker.shared.sync(context: modelContext)
                     }
                 }
             }
@@ -58,10 +55,13 @@ struct DashboardView: View {
                         }
                         
                         Button(action: {
-                            showDeleteConfirmation = true
+                            AuthManager.shared.logout()
                         }) {
-                            Image(systemName: "trash")
-                                .foregroundColor(.red)
+                             HStack {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                Text("Logout")
+                            }
+                            .foregroundColor(.red)
                         }
                     }
                 }
@@ -72,14 +72,6 @@ struct DashboardView: View {
                             .font(.title2)
                     }
                 }
-            }
-            .alert("Delete All Expenses?", isPresented: $showDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete All", role: .destructive) {
-                    deleteAll()
-                }
-            } message: {
-                Text("This action cannot be undone.")
             }
             .onAppear {
                  ExpenseService.shared.setModelContext(modelContext)
@@ -100,12 +92,6 @@ struct DashboardView: View {
     private func deleteExpense(_ expense: Expense) {
         withAnimation {
              ExpenseService.shared.deleteExpense(expense)
-        }
-    }
-    
-    private func deleteAll() {
-        withAnimation {
-            try? ExpenseService.shared.deleteAllExpenses()
         }
     }
 }
