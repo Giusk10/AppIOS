@@ -64,15 +64,29 @@ class ExpenseService {
             
             let amountString = (amountIndex >= 0) ? cleanColumns[amountIndex] : "0"
             if let amount = Double(amountString) {
+                // Determine category: Use CSV value if present, otherwise classify based on description
+                var category = (stateIndex >= 0) ? cleanColumns[stateIndex] : nil // Previous code used stateIndex for category?? No, wait.
+                // The previous code had: `state: (stateIndex >= 0) ? cleanColumns[stateIndex] : nil`
+                // And `category: (categoryIndex >= ...)` which was missing.
+                // Let's look at the mapping logic I wrote in Step 112:
+                // `category: (cleanColumns.count > 3 ? cleanColumns[3] : nil)` was the INITIAL logic.
+                // Then in Step 112 I changed it to header based but I didn't see `categoryIndex`.
+                // Looking at the file content in Step 107, there IS NO "Category" column.
+                // So we MUST use the classifier.
+                
+                let description = (descriptionIndex >= 0) ? cleanColumns[descriptionIndex] : "Imported"
+                let classifiedCategory = ExpenseClassifier.classify(description)
+                
                 let expense = Expense(
                     type: (typeIndex >= 0) ? cleanColumns[typeIndex] : "",
                     product: (productIndex >= 0) ? cleanColumns[productIndex] : "",
                     startedDate: (startedDateIndex >= 0) ? cleanColumns[startedDateIndex] : nil,
                     completedDate: (completedDateIndex >= 0) ? cleanColumns[completedDateIndex] : nil,
-                    description: (descriptionIndex >= 0) ? cleanColumns[descriptionIndex] : "Imported",
+                    description: description,
                     amount: amount,
                     currency: (currencyIndex >= 0) ? cleanColumns[currencyIndex] : nil,
-                    state: (stateIndex >= 0) ? cleanColumns[stateIndex] : nil
+                    state: (stateIndex >= 0) ? cleanColumns[stateIndex] : nil,
+                    category: classifiedCategory
                 )
                 context.insert(expense)
                 count += 1
@@ -81,6 +95,11 @@ class ExpenseService {
         
         try? context.save()
         return count
+    }
+    
+    func deleteAllExpenses() throws {
+        guard let context = modelContext else { return }
+        try context.delete(model: Expense.self)
     }
     
     // Kept for compatibility but logic is now local filtering

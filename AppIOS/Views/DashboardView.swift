@@ -4,6 +4,7 @@ import SwiftData
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.startedDate, order: .reverse) private var expenses: [Expense]
+    @State private var showDeleteConfirmation = false
     
     // Computed property for total balance
     var totalBalance: Double {
@@ -46,8 +47,17 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    NavigationLink(destination: UploadView()) {
-                        Image(systemName: "square.and.arrow.down")
+                    HStack {
+                         NavigationLink(destination: UploadView()) {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                        
+                        Button(action: {
+                            showDeleteConfirmation = true
+                        }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -57,6 +67,14 @@ struct DashboardView: View {
                             .font(.title2)
                     }
                 }
+            }
+            .alert("Delete All Expenses?", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete All", role: .destructive) {
+                    deleteAll()
+                }
+            } message: {
+                Text("This action cannot be undone.")
             }
             .onAppear {
                  ExpenseService.shared.setModelContext(modelContext)
@@ -69,6 +87,18 @@ struct DashboardView: View {
             for index in offsets {
                 modelContext.delete(expenses[index])
             }
+        }
+    }
+    
+    private func deleteExpense(_ expense: Expense) {
+        withAnimation {
+            modelContext.delete(expense)
+        }
+    }
+    
+    private func deleteAll() {
+        withAnimation {
+            try? ExpenseService.shared.deleteAllExpenses()
         }
     }
 }
