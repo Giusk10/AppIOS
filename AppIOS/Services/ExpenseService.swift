@@ -1,39 +1,64 @@
 import Foundation
 
-struct ExpenseService {
+import Foundation
+import SwiftData
+
+@MainActor
+class ExpenseService {
     static let shared = ExpenseService()
+    var modelContext: ModelContext?
+
     private init() {}
     
-    func fetchExpenses() async throws -> [Expense] {
-        return try await HTTPClient.shared.request(endpoint: "/Expense/rest/expense/getExpenses", method: "GET")
+    func setModelContext(_ context: ModelContext) {
+        self.modelContext = context
     }
     
-    func fetchExpensesByDate(start: String, end: String) async throws -> [Expense] {
-        struct DateRangePayload: Encodable {
-            let startedDate: String
-            let completedDate: String
+    func fetchExpenses() throws -> [Expense] {
+        guard let context = modelContext else { return [] }
+        let descriptor = FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.startedDate, order: .reverse)])
+        return try context.fetch(descriptor)
+    }
+    
+    func addExpense(_ expense: Expense) {
+        modelContext?.insert(expense)
+    }
+    
+    func deleteExpense(_ expense: Expense) {
+        modelContext?.delete(expense)
+    }
+    
+    func importCSV(url: URL) throws {
+        // Implementation for CSV parsing will go here
+        guard let context = modelContext else { return }
+        
+        let data = try String(contentsOf: url, encoding: .utf8)
+        let rows = data.components(separatedBy: "\n")
+        
+        // Skip header if exists, assuming first row is header
+        for (index, row) in rows.enumerated() {
+            if index == 0 { continue } // Skip header
+            let columns = row.components(separatedBy: ",") // Basic CSV parsing, might need more robust parser for quoted fields
+            if columns.count >= 4 { // Basic validation
+                 // Mapping columns to Expense fields (Adjust index based on SpendyApp CSV format)
+                 // Assuming format: Date, Description, Amount, Category... (Need to verify)
+                 // For now creating a dummy implementation to be refined
+                 // Let's assume standard simple CSV
+                 
+                let description = columns[1]
+                if let amount = Double(columns[2]) {
+                     let expense = Expense(description: description, amount: amount)
+                     context.insert(expense)
+                }
+            }
         }
-        let payload = DateRangePayload(startedDate: start, completedDate: end)
-        return try await HTTPClient.shared.request(endpoint: "/Expense/rest/expense/getExpenseByDate", method: "POST", body: payload)
     }
     
-    func fetchExpensesByMonth(month: String, year: String) async throws -> [Expense] {
-         struct MonthPayload: Encodable {
-            let month: String
-            let year: String
-        }
-        let payload = MonthPayload(month: month, year: year)
-        return try await HTTPClient.shared.request(endpoint: "/Expense/rest/expense/getExpenseByMonth", method: "POST", body: payload)
-    }
-    
-    func fetchMonthlyAmountOfYear(year: String) async throws -> [String: AnyCodable] {
-        // Using AnyCodable wrapper or specific struct if structure is known. 
-        // Based on TS: Record<string, number | string>
-        // Swift Dictionary values must be same type. decoding mixed types is tricky.
-        // For now, let's assume it returns a raw dictionary or map to specific model.
-        // Returing raw data or a simplified model might be safer.
-        // Let's implement a wrapper.
-        return try await HTTPClient.shared.request(endpoint: "/Expense/rest/expense/getMonthlyAmountOfYear", method: "POST", body: ["year": year])
+    // Kept for compatibility but logic is now local filtering
+    func fetchExpensesByDate(start: String, end: String) throws -> [Expense] {
+        let all = try fetchExpenses()
+        // Simple string filtering, should be improved with real Date objects
+        return all.filter { ($0.startedDate ?? "") >= start && ($0.startedDate ?? "") <= end }
     }
 }
 

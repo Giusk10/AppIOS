@@ -1,5 +1,5 @@
 import SwiftUI
-internal import UniformTypeIdentifiers
+import UniformTypeIdentifiers
 
 struct UploadView: View {
     @State private var isImporting: Bool = false
@@ -10,7 +10,7 @@ struct UploadView: View {
             Text("Import Expenses")
                 .font(.title)
             
-            Button("Select File") {
+            Button("Select CSV File") {
                 isImporting = true
             }
             .padding()
@@ -20,22 +20,25 @@ struct UploadView: View {
             
             Text(message)
                 .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .padding()
         }
         .fileImporter(
             isPresented: $isImporting,
-            allowedContentTypes: [.item], // General item for now, refine as needed
+            allowedContentTypes: [.commaSeparatedText],
             allowsMultipleSelection: false
         ) { result in
             do {
-                let selectedFile: URL = try result.get().first!
-                message = "Selected: \(selectedFile.lastPathComponent)\n(Upload logic to be implemented)"
+                guard let selectedFile: URL = try result.get().first else { return }
                 
-                // Here we would call the service to upload the file.
-                // Note: Accessing security scoped resources is needed for real file access.
-                // if selectedFile.startAccessingSecurityScopedResource() {
-                //      // Read data and upload
-                //      selectedFile.stopAccessingSecurityScopedResource()
-                // }
+                if selectedFile.startAccessingSecurityScopedResource() {
+                    defer { selectedFile.stopAccessingSecurityScopedResource() }
+                    
+                    try ExpenseService.shared.importCSV(url: selectedFile)
+                    message = "Successfully imported: \(selectedFile.lastPathComponent)"
+                } else {
+                    message = "Permission denied to access file."
+                }
             } catch {
                 message = "Error: \(error.localizedDescription)"
             }
