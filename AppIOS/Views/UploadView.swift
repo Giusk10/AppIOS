@@ -34,8 +34,19 @@ struct UploadView: View {
                 if selectedFile.startAccessingSecurityScopedResource() {
                     defer { selectedFile.stopAccessingSecurityScopedResource() }
                     
-                    try ExpenseService.shared.importCSV(url: selectedFile)
-                    message = "File queued for upload: \(selectedFile.lastPathComponent)\nIt will be processed when online."
+                    message = "Uploading..."
+                    Task {
+                        do {
+                            let success = try await ExpenseService.shared.importCSV(url: selectedFile)
+                            await MainActor.run {
+                                message = success ? "Upload successful!" : "Upload failed."
+                            }
+                        } catch {
+                            await MainActor.run {
+                                message = "Error: \(error.localizedDescription)"
+                            }
+                        }
+                    }
                 } else {
                     message = "Permission denied to access file."
                 }

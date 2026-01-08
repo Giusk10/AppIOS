@@ -1,13 +1,12 @@
 import SwiftUI
-import SwiftData
 
 struct DashboardView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Expense.startedDate, order: .reverse) private var expenses: [Expense]
+    @StateObject private var viewModel = DashboardViewModel()
+    @State private var showingDeleteAlert = false
     
     // Computed property for total balance
     var totalBalance: Double {
-        expenses.reduce(0) { $0 + $1.amount }
+        viewModel.expenses.reduce(0) { $0 + $1.amount }
     }
     
     var body: some View {
@@ -29,9 +28,19 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
                     .background(Color(UIColor.systemBackground))
+                     .overlay(
+                        viewModel.isLoading ? ProgressView().frame(maxWidth: .infinity, alignment: .trailing).padding() : nil
+                    )
+                    
+                    if let errorMessage = viewModel.errorMessage {
+                         Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .padding()
+                    }
                     
                     List {
-                        ForEach(expenses) { expense in
+                        ForEach(viewModel.expenses) { expense in
                             ExpenseCard(expense: expense)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -41,7 +50,7 @@ struct DashboardView: View {
                     }
                     .listStyle(.plain)
                     .refreshable {
-                        await SyncWorker.shared.sync(context: modelContext)
+                        viewModel.fetchExpenses()
                     }
                 }
             }
@@ -66,17 +75,32 @@ struct DashboardView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: AddExpenseView()) {
-                        Image(systemName: "plus.circle.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .font(.title2)
+                     HStack {
+                        Button(action: {
+                            showingDeleteAlert = true
+                        }) {
+                            Image(systemName: "trash")
+                        }
+                        .disabled(viewModel.expenses.isEmpty)
+
+                        NavigationLink(destination: AddExpenseView()) {
+                            Image(systemName: "plus.circle.fill")
+                                .symbolRenderingMode(.hierarchical)
+                                .font(.title2)
+                        }
                     }
                 }
             }
             .onAppear {
-                 ExpenseService.shared.setModelContext(modelContext)
-                 // Trigger initial fetch/sync
-                 _ = try? ExpenseService.shared.fetchExpenses()
+                 viewModel.fetchExpenses()
+            }
+            .alert("Delete All Expenses", isPresented: $showingDeleteAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    viewModel.deleteAllExpenses()
+                }
+            } message: {
+                Text("Are you sure you want to delete all expenses? This action cannot be undone.")
             }
         }
     }
@@ -84,14 +108,8 @@ struct DashboardView: View {
     private func deleteItems(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                ExpenseService.shared.deleteExpense(expenses[index])
+                viewModel.deleteExpense(viewModel.expenses[index])
             }
-        }
-    }
-    
-    private func deleteExpense(_ expense: Expense) {
-        withAnimation {
-             ExpenseService.shared.deleteExpense(expense)
         }
     }
 }

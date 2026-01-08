@@ -73,7 +73,9 @@ struct ExpenseDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     private func deleteExpense() {
-        ExpenseService.shared.deleteExpense(expense)
-        dismiss()
+        Task {
+            try? await ExpenseService.shared.deleteExpense(expense)
+            dismiss()
+        }
     }
 }

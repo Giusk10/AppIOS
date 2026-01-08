@@ -1,14 +1,14 @@
 import SwiftUI
-import SwiftData
 
 struct AddExpenseView: View {
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) private var modelContext
     
     @State private var description: String = ""
     @State private var amount: Double = 0.0
     @State private var date: Date = Date()
     @State private var category: String = "General"
+    @State private var isLoading = false
+    @State private var errorMessage: String?
     
     // Simple predefined categories
     let categories = ["General", "Food", "Transport", "Shopping", "Entertainment", "Bills", "Health"]
@@ -31,27 +31,42 @@ struct AddExpenseView: View {
             Section(header: Text("Date")) {
                 DatePicker("Date", selection: $date, displayedComponents: .date)
             }
-        }
-        .navigationTitle("New Expense")
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    saveExpense()
+            
+            if let error = errorMessage {
+                Section {
+                    Text(error)
+                        .foregroundColor(.red)
                 }
-                .disabled(description.isEmpty || amount == 0)
             }
         }
-        .onAppear {
-             // Ensure service context is set if we were to use it helper methods, 
-             // though here we might just insert directly or use service.
-             ExpenseService.shared.setModelContext(modelContext)
+        .navigationTitle("New Expense")
+        .disabled(isLoading)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                if isLoading {
+                    ProgressView()
+                } else {
+                    Button("Save") {
+                        saveExpense()
+                    }
+                    .disabled(description.isEmpty || amount == 0)
+                }
+            }
         }
     }
     
     private func saveExpense() {
+        isLoading = true
+        errorMessage = nil
+        
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         let dateString = formatter.string(from: date)
+        
+        // Ensure negative amount for expense if user enters positive
+        // Though user might enter negative. Let's assume standard is negative.
+        // User enters 10 -> -10. User enters -10 -> -10.
+        let finalAmount = -abs(amount)
         
         let expense = Expense(
             type: "Manual",
@@ -59,16 +74,23 @@ struct AddExpenseView: View {
             startedDate: dateString,
             completedDate: dateString,
             description: description,
-            amount: -abs(amount), // Assuming expenses are negative like in CSV
+            amount: finalAmount,
             category: category
         )
         
-        // Using Service to be consistent with architecture
-        ExpenseService.shared.addExpense(expense)
-        
-        // Save context
-        try? modelContext.save()
-        
-        dismiss()
+        Task {
+            do {
+                try await ExpenseService.shared.addExpense(expense)
+                await MainActor.run {
+                    isLoading = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Failed to save: \(error.localizedDescription)"
+                }
+            }
+        }
     }
 }
