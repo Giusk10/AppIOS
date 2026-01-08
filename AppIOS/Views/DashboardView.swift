@@ -63,7 +63,7 @@ struct DashboardView: View {
             }
             }
             .navigationTitle("Spese")
-            .accentColor(.spendyBackground) // Darken back buttons and navigation items
+            .accentColor(.spendyText) // Ensure Dark accent for navigation items
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -84,6 +84,7 @@ struct DashboardView: View {
                         }) {
                             Image(systemName: "trash")
                         }
+                        .foregroundColor(.spendyRed) // Explicit Red color
                         .disabled(viewModel.expenses.isEmpty)
 
                         NavigationLink(destination: AddExpenseView()) {
@@ -121,8 +122,14 @@ struct ExpenseCard: View {
     let expense: Expense
     
     var body: some View {
-        NavigationLink(destination: ExpenseDetailView(expense: expense)) {
-            HStack(alignment: .top) {
+        // Use ZStack to hide default NavigationLink arrow and provide our own
+        ZStack {
+            NavigationLink(destination: ExpenseDetailView(expense: expense)) {
+                EmptyView()
+            }
+            .opacity(0)
+            
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 6) {
                     // Row 1: Description
                     Text(expense.userDescription)
@@ -152,21 +159,26 @@ struct ExpenseCard: View {
                 
                 Spacer()
                 
-                // Right Side: Amount
-                Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    // If negative (spending), show normal text or red? 
-                    // Usually spending is Black/Normal. Income is Green. 
-                    // Previous code: >=0 ? .green : .red. 
-                    .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText) 
+                // Right Side: Amount and Chevron
+                HStack(spacing: 8) {
+                    Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.spendyText) // Darker chevron color as requested
+                }
             }
             .padding(16)
             .background(Color.white)
             .cornerRadius(12)
             .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
-        .buttonStyle(PlainButtonStyle())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
     }
 }
 
