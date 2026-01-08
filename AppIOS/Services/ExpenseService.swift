@@ -37,8 +37,8 @@ class ExpenseService {
          try await NetworkManager.shared.performRequestNoResponse(endpoint: "/Expense/rest/expense/deleteExpense", method: "DELETE", body: JSONSerialization.data(withJSONObject: body))
     }
     
-    func importCSV(url: URL) async throws -> Bool {
-        return try await NetworkManager.shared.uploadFile(endpoint: "/Expense/rest/expense/import", fileURL: url)
+    func importCSV(data: Data, fileName: String) async throws -> Bool {
+        return try await NetworkManager.shared.uploadFile(endpoint: "/Expense/rest/expense/import", fileData: data, fileName: fileName)
     }
     
     func deleteAllExpenses() async throws {

@@ -45,6 +45,15 @@ class NetworkManager {
              return "" as! T
         }
         
+        // Handle 204 No Content
+        if httpResponse.statusCode == 204, data.isEmpty {
+             // If T is an array, we want to return []
+             // We can accept that if we pass empty json array, it might decode to T
+             if let emptyList = try? JSONDecoder().decode(T.self, from: "[]".data(using: .utf8)!) {
+                 return emptyList
+             }
+        }
+        
         let decoder = JSONDecoder()
         // Handle date strategies if needed. For now assuming string or ISO8601
         
@@ -86,7 +95,7 @@ class NetworkManager {
     }
     
     // For Multipart Upload
-    func uploadFile(endpoint: String, fileURL: URL) async throws -> Bool {
+    func uploadFile(endpoint: String, fileData: Data, fileName: String) async throws -> Bool {
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
              return false
         }
@@ -102,10 +111,9 @@ class NetworkManager {
         }
         
         var data = Data()
-        guard let fileData = try? Data(contentsOf: fileURL) else { return false }
         
         data.append("--\(boundary)\r\n".data(using: .utf8)!)
-        data.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileURL.lastPathComponent)\"\r\n".data(using: .utf8)!)
+        data.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
         data.append("Content-Type: text/csv\r\n\r\n".data(using: .utf8)!)
         data.append(fileData)
         data.append("\r\n".data(using: .utf8)!)
