@@ -52,9 +52,32 @@ class ExpenseService {
     }
     
     func getMonthlyStats(year: String) async -> [Double]? {
-        if let response = try? await NetworkManager.shared.performRequest(endpoint: "/Expense/rest/expense/getMonthlyAmountOfYear", method: "POST", body: JSONEncoder().encode(["year": year]), responseType: [Double].self) {
+        // Endpoint expects "year" in body
+        let body = ["year": year]
+        if let response = try? await NetworkManager.shared.performRequest(endpoint: "/Expense/rest/expense/getMonthlyAmountOfYear", method: "POST", body: JSONEncoder().encode(body), responseType: [Double].self) {
             return response
         }
         return nil
+    }
+    
+    func fetchExpensesByDate(start: Date, end: Date) async throws -> [Expense] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd" // Assuming standard format, verify if backend needs specific
+        
+        let body = [
+            "startedDate": formatter.string(from: start),
+            "completedDate": formatter.string(from: end)
+        ]
+        
+        return try await NetworkManager.shared.performRequest(endpoint: "/Expense/rest/expense/getExpenseByDate", method: "POST", body: JSONEncoder().encode(body), responseType: [Expense].self)
+    }
+    
+    func fetchExpensesByMonth(month: Int, year: Int) async throws -> [Expense] {
+        let body = [
+            "month": String(month),
+            "year": String(year)
+        ]
+        
+        return try await NetworkManager.shared.performRequest(endpoint: "/Expense/rest/expense/getExpenseByMonth", method: "POST", body: JSONEncoder().encode(body), responseType: [Expense].self)
     }
 }

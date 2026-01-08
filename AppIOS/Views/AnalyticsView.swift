@@ -25,7 +25,7 @@ struct AnalyticsView: View {
                                 .foregroundColor(.spendyRed)
                                 .padding()
                         } else {
-                            // 1. Filter Section (Visual Only per screenshot)
+                            // 1. Filter Section
                             VStack(spacing: 16) {
                                 // Year Filter
                                 VStack(alignment: .leading, spacing: 8) {
@@ -35,7 +35,7 @@ struct AnalyticsView: View {
                                         .fontWeight(.medium)
                                     
                                     Menu {
-                                        ForEach(2020...2030, id: \.self) { year in
+                                        ForEach(Array(2020...2030), id: \.self) { year in
                                             Button(String(year)) {
                                                 selectedYear = String(year)
                                                 viewModel.updateFilters(year: selectedYear)
@@ -60,43 +60,98 @@ struct AnalyticsView: View {
                                 .padding(.horizontal)
                                 
                                 // Type Filter
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Mostra spese")
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Filtra Spese")
                                         .font(.caption)
                                         .foregroundColor(.spendySecondaryText)
                                         .fontWeight(.medium)
                                     
-                                    HStack {
-                                        Text(selectedFilter)
-                                            .font(.body)
-                                            .foregroundColor(.spendyText)
-                                        Spacer()
-                                        
-                                        Button(action: {}) {
-                                            Text("Applica filtri")
-                                                .font(.caption)
-                                                .fontWeight(.bold)
-                                                .padding(.horizontal, 16)
-                                                .padding(.vertical, 8)
-                                                .background(Color.spendyPrimary)
-                                                .foregroundColor(.white)
-                                                .cornerRadius(8)
+                                    // Mode Selection
+                                    Menu {
+                                        Button("Tutte le spese") {
+                                            viewModel.filterMode = .all
+                                            selectedFilter = "Tutte le spese"
                                         }
+                                        Button("Per Mese") {
+                                            viewModel.filterMode = .month
+                                            selectedFilter = "Per Mese"
+                                        }
+                                        Button("Per Data") {
+                                            viewModel.filterMode = .dateRange
+                                            selectedFilter = "Per Data"
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Text(selectedFilter)
+                                                .font(.body)
+                                                .foregroundColor(.spendyText)
+                                            Spacer()
+                                            Image(systemName: "chevron.down")
+                                                .foregroundColor(.spendySecondaryText)
+                                                .font(.caption)
+                                        }
+                                        .padding()
+                                        .background(Color.white)
+                                        .cornerRadius(12)
+                                        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
                                     }
-                                    .padding()
-                                    .background(Color.white)
-                                    .cornerRadius(12)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
+                                    
+                                    // Conditional Inputs
+                                    if viewModel.filterMode == .month {
+                                        HStack {
+                                            Picker("Mese", selection: $viewModel.selectedMonth) {
+                                                ForEach(1...12, id: \.self) { month in
+                                                    Text(Calendar.current.monthSymbols[month - 1]).tag(month)
+                                                }
+                                            }
+                                            .pickerStyle(.menu)
+                                            .frame(maxWidth: .infinity)
+                                            .background(Color.white)
+                                            .cornerRadius(8)
+                                            
+                                            Picker("Anno", selection: $viewModel.selectedYearInt) {
+                                                ForEach(Array(2020...2030), id: \.self) { year in
+                                                    Text(String(year)).tag(year)
+                                                }
+                                            }
+                                            .pickerStyle(.menu)
+                                            .frame(maxWidth: .infinity)
+                                            .background(Color.white)
+                                            .cornerRadius(8)
+                                        }
+                                    } else if viewModel.filterMode == .dateRange {
+                                        VStack(spacing: 8) {
+                                            DatePicker("Da", selection: $viewModel.selectedDateRange.start, displayedComponents: .date)
+                                            DatePicker("A", selection: $viewModel.selectedDateRange.end, displayedComponents: .date)
+                                        }
+                                        .padding(8)
+                                        .background(Color.white)
+                                        .cornerRadius(8)
+                                    }
+                                    
+                                    // Apply Button
+                                    Button(action: {
+                                        viewModel.applyFilters()
+                                    }) {
+                                        Text("Applica filtri")
+                                            .font(.caption)
+                                            .fontWeight(.bold)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 12)
+                                            .background(Color.spendyPrimary)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(12)
+                                    }
                                 }
                                 .padding(.horizontal)
                             }
                             
                             // 2. Summary Cards
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 16) {
+                                LazyHStack(spacing: 16) {
                                     SummaryCard(title: "USCITE TOTALI", value: viewModel.totalBalance, subtitle: "\(viewModel.totalTransactions) movimenti monitorati", color: .spendyRed)
                                     SummaryCard(title: "SPESA MEDIA", value: viewModel.averageExpense, subtitle: "Calcolata su tutte le transazioni", color: .spendyBlue)
-                                    SummaryCard(title: "USCITA MAGGIORE", value: viewModel.highestExpense, subtitle: "Il movimento più rilevante registrato", color: .spendyOrange) // Orange matches screenshot roughly (or can use Primary)
+                                    SummaryCard(title: "USCITA MAGGIORE", value: viewModel.highestExpense, subtitle: "Il movimento più rilevante registrato", color: .spendyOrange)
                                 }
                                 .padding(.horizontal)
                             }
@@ -116,7 +171,7 @@ struct AnalyticsView: View {
                                 } else {
                                     Chart(viewModel.monthlyData) { item in
                                         LineMark(
-                                            x: .value("Mese", item.month),
+                                            x: .value("Data", item.month),
                                             y: .value("Importo", item.amount)
                                         )
                                         .interpolationMethod(.catmullRom)
@@ -124,7 +179,7 @@ struct AnalyticsView: View {
                                         .lineStyle(StrokeStyle(lineWidth: 3))
                                         
                                         AreaMark(
-                                            x: .value("Mese", item.month),
+                                            x: .value("Data", item.month),
                                             y: .value("Importo", item.amount)
                                         )
                                         .interpolationMethod(.catmullRom)
@@ -187,7 +242,7 @@ struct AnalyticsView: View {
             }
             .navigationTitle("Dashboard finanziaria")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.spendyBackground) // Ensure Nav stack bg
+            .background(Color.spendyBackground)
             .onAppear {
                 viewModel.loadData()
                 viewModel.fetchMonthlyStats(year: selectedYear)
@@ -223,7 +278,7 @@ struct SummaryCard: View {
                 .foregroundColor(.spendySecondaryText)
                 .lineLimit(2)
         }
-        .frame(width: 250, height: 130, alignment: .topLeading) // Wider to match screenshot
+        .frame(width: 250, height: 130, alignment: .topLeading)
         .padding(20)
         .background(Color.white)
         .cornerRadius(16)
@@ -233,11 +288,6 @@ struct SummaryCard: View {
                 .foregroundColor(color),
             alignment: .top
         )
-        // Add left border as per screenshot (red/blue/cyan vertical line on left)
-        // Wait, screenshot shows colored BORDER TOP? No, screenshot shows "Red border top" for first card, "Blue border top" for second.
-        // Actually, looking closely at the first screenshot:
-        // "USCITE TOTALI" -> Card has a RED top border (or left?). It looks like a TOP border or maybe a FULL border but colored on top. 
-        // Let's stick to the overlay top border I implemented, it's very close to the look.
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }

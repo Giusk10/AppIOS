@@ -19,8 +19,6 @@ class AnalyticsViewModel: ObservableObject {
         let amount: Double
         let date: Date // For sorting
     }
-    
-    // Alias to fix capitalization for public use if preferred, but struct above is internal helper
     typealias MonthlyMetric = monthlyMetric
     
     struct CategoryMetric: Identifiable {
@@ -30,6 +28,18 @@ class AnalyticsViewModel: ObservableObject {
         let count: Int
     }
     
+    // Filter State
+    @Published var filterMode: FilterMode = .all
+    @Published var selectedDateRange: (start: Date, end: Date) = (Date(), Date())
+    @Published var selectedMonth: Int = Calendar.current.component(.month, from: Date())
+    @Published var selectedYearInt: Int = Calendar.current.component(.year, from: Date())
+    
+    enum FilterMode {
+        case all
+        case month
+        case dateRange
+    }
+    
     func loadData() {
         isLoading = true
         errorMessage = nil
@@ -37,49 +47,137 @@ class AnalyticsViewModel: ObservableObject {
         Task {
             do {
                 let expenses = try await ExpenseService.shared.fetchExpenses()
-                processExpenses(expenses)
-                isLoading = false
+                await MainActor.run {
+                    processExpenses(expenses)
+                    isLoading = false
+                }
             } catch {
-                isLoading = false
-                errorMessage = "Failed to load data: \(error.localizedDescription)"
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Failed to load data: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    func applyFilters() {
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                var expenses: [Expense] = []
+                
+                switch filterMode {
+                case .all:
+                    expenses = try await ExpenseService.shared.fetchExpenses()
+                case .month:
+                    expenses = try await ExpenseService.shared.fetchExpensesByMonth(month: selectedMonth, year: selectedYearInt)
+                case .dateRange:
+                    expenses = try await ExpenseService.shared.fetchExpensesByDate(start: selectedDateRange.start, end: selectedDateRange.end)
+                }
+                
+                await MainActor.run {
+                    processExpenses(expenses)
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Failed to load expenses: \(error.localizedDescription)"
+                }
             }
         }
     }
     
     private func processExpenses(_ expenses: [Expense]) {
-        // Filter valid expenses (ignore those without amount etc if any, though model enforces it)
-        // Expenses are usually negative for spending? 
-        // User screenshot shows positive numbers for "USCITE".
-        // Our AddExpense uses negative. Dashboard shows green/red.
-        // Let's assume we want to show absolute values for "Spending" analysis,
-        // or just sum them up. 
-        // Screenshot: "Uscite Totali: 847,41 €". "Uscita Maggiore: 247,00 €".
-        // This implies we look at the magnitude of negative numbers (outflows).
-        
         let outflows = expenses.filter { $0.amount < 0 }
         
-        // 1. Total Balance (Balance implies net, but "Uscite Totali" implies User wants total spending)
-        // However, "Total Balance" in dashboard is net.
-        // The request says "grafico e statistiche come nel mio sito" and attaches image of "Uscite Totali".
-        // So I will implement "Total Spending" (sum of abs(negative)).
-        
+        // 1. Calculate Summaries
         let totalSpending = outflows.reduce(0) { $0 + abs($1.amount) }
         self.totalBalance = totalSpending
         
         self.totalTransactions = outflows.count
-        
-        // 2. Average
         self.averageExpense = outflows.isEmpty ? 0 : totalSpending / Double(outflows.count)
-        
-        // 3. Highest
         self.highestExpense = outflows.map { abs($0.amount) }.max() ?? 0.0
         
-        // 4. Monthly Trend - Fetch from Server
-        // We will fetch this separately or we can trigger it here if year is known.
-        // For now, removing manual aggregation as we will use fetchMonthlyStats
+        // 2. Categories
+        var categoryMap: [String: (Double, Int)] = [:]
+        for expense in outflows {
+            let cat = expense.category ?? "Uncategorized"
+            let existing = categoryMap[cat] ?? (0.0, 0)
+            categoryMap[cat] = (existing.0 + abs(expense.amount), existing.1 + 1)
+        }
+        
+        self.topCategories = categoryMap.map { key, value in
+            CategoryMetric(name: key, amount: value.0, count: value.1)
+        }.sorted(by: { $0.amount > $1.amount })
+        
+        // 3. Chart Data (Dynamic based on Filter)
+        generateChartData(from: outflows)
     }
     
+    private func generateChartData(from expenses: [Expense]) {
+        let dateFormatter = DateFormatter()
+        let calendar = Calendar.current
+        var chartPoints: [MonthlyMetric] = []
+        var groupedExpenses: [Date: Double] = [:]
+        
+        // Determine grouping strategy
+        let isDaily = (filterMode == .month || filterMode == .dateRange)
+        
+        // Date Parsing Helper
+        let parseDate: (String) -> Date? = { dateString in
+            // Try standard formats
+            let formats = ["yyyy-MM-dd", "dd/MM/yyyy", "yyyy-MM-dd HH:mm:ss"]
+            for format in formats {
+                dateFormatter.dateFormat = format
+                if let date = dateFormatter.date(from: dateString) { return date }
+            }
+            return nil
+        }
+        
+        for expense in expenses {
+            if let dateStr = expense.startedDate, let fullDate = parseDate(dateStr) {
+                let keyDate: Date
+                if isDaily {
+                    // Group by Day (Strip time)
+                    let components = calendar.dateComponents([.year, .month, .day], from: fullDate)
+                    keyDate = calendar.date(from: components) ?? fullDate
+                } else {
+                    // Group by Month (First day of month)
+                    let components = calendar.dateComponents([.year, .month], from: fullDate)
+                    keyDate = calendar.date(from: components) ?? fullDate
+                }
+                
+                groupedExpenses[keyDate, default: 0] += abs(expense.amount)
+            }
+        }
+        
+        // Sort keys and create metrics
+        let sortedKeys = groupedExpenses.keys.sorted()
+        
+        if isDaily {
+             dateFormatter.dateFormat = "dd" // Day number
+        } else {
+             dateFormatter.dateFormat = "MMM" // Month name
+        }
+        
+        for date in sortedKeys {
+            if let amount = groupedExpenses[date] {
+                let label = dateFormatter.string(from: date)
+                chartPoints.append(MonthlyMetric(month: label, amount: amount, date: date))
+            }
+        }
+        
+        self.monthlyData = chartPoints
+    }
+    
+    // Legacy/Comparison method - can keep or remove if we rely fully on local agg
     func fetchMonthlyStats(year: String) {
+        // Only fetch if we really want server side stats for the whole year specifically
+        // usage in updateFilters calls this.
+        
         Task {
             if let amounts = await ExpenseService.shared.getMonthlyStats(year: year) {
                 await MainActor.run {
@@ -96,7 +194,6 @@ class AnalyticsViewModel: ObservableObject {
         var metrics: [MonthlyMetric] = []
         
         for (index, amount) in amounts.enumerated() {
-            // Create a date for this month/year for correct sorting and label
             var components = DateComponents()
             components.year = Int(year)
             components.month = index + 1 // 1-based
@@ -104,8 +201,6 @@ class AnalyticsViewModel: ObservableObject {
             
             if let date = calendar.date(from: components) {
                 let monthName = dateFormatter.string(from: date)
-                // Filter out zero months if desired, or keep them for the chart continuity
-                // Keeping them is usually better for a "Trend" line
                 metrics.append(MonthlyMetric(month: monthName, amount: amount, date: date))
             }
         }
@@ -115,6 +210,6 @@ class AnalyticsViewModel: ObservableObject {
     
     func updateFilters(year: String) {
         fetchMonthlyStats(year: year)
-        // Future: Filter expenses list by year if needed, currently we just load all.
+        selectedYearInt = Int(year) ?? selectedYearInt
     }
 }
