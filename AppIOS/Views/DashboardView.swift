@@ -12,7 +12,7 @@ struct DashboardView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(UIColor.systemGroupedBackground)
+                Color.spendyBackground
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
@@ -20,21 +20,22 @@ struct DashboardView: View {
                     VStack(spacing: 8) {
                         Text("Total Balance")
                             .font(.subheadline)
-                            .foregroundColor(.gray)
+                            .foregroundColor(.spendySecondaryText)
                         Text(totalBalance, format: .currency(code: "EUR"))
                             .font(.system(size: 34, weight: .bold, design: .rounded))
-                            .foregroundColor(totalBalance >= 0 ? .primary : .red)
+                            .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
-                    .background(Color(UIColor.systemBackground))
-                     .overlay(
+                    .background(Color.white)
+                    .overlay(
                         viewModel.isLoading ? ProgressView().frame(maxWidth: .infinity, alignment: .trailing).padding() : nil
                     )
+                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
                     
                     if let errorMessage = viewModel.errorMessage {
                          Text(errorMessage)
-                            .foregroundColor(.red)
+                            .foregroundColor(.spendyRed)
                             .font(.caption)
                             .padding()
                     }
@@ -54,7 +55,7 @@ struct DashboardView: View {
                     }
                 }
             }
-            .navigationTitle("Dashboard")
+            .navigationTitle("Spese")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -65,7 +66,7 @@ struct DashboardView: View {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
                             Text("Logout")
                         }
-                        .foregroundColor(.red)
+                        .foregroundColor(.spendyRed)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -114,29 +115,30 @@ struct ExpenseCard: View {
     var body: some View {
         NavigationLink(destination: ExpenseDetailView(expense: expense)) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     // Row 1: Description
                     Text(expense.userDescription)
                         .font(.headline)
                         .lineLimit(2)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.spendyText)
                     
                     // Row 2: Date
                     if let date = expense.startedDate {
                         Text(date.formattedDate())
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.spendySecondaryText)
                     }
                     
                     // Row 3: Category
                     if let category = expense.category {
                         Text(category)
                             .font(.caption2)
+                            .fontWeight(.medium)
                             .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.1))
-                            .foregroundColor(.blue)
-                            .cornerRadius(8)
+                            .padding(.vertical, 4)
+                            .background(Color.spendyPrimary.opacity(0.1))
+                            .foregroundColor(.spendyPrimary)
+                            .cornerRadius(6)
                     }
                 }
                 
@@ -145,34 +147,34 @@ struct ExpenseCard: View {
                 // Right Side: Amount
                 Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
                     .font(.headline)
-                    .foregroundColor(expense.amount >= 0 ? .green : .red)
+                    .fontWeight(.bold)
+                    // If negative (spending), show normal text or red? 
+                    // Usually spending is Black/Normal. Income is Green. 
+                    // Previous code: >=0 ? .green : .red. 
+                    .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText) 
             }
-            .padding()
-            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .padding(16)
+            .background(Color.white)
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
-        .buttonStyle(PlainButtonStyle()) // Keeps the custom styling without default link blue
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
 extension String {
     func formattedDate() -> String {
-        // Quick helper to format string dates nicely if possible
-        // Assuming format "yyyy-MM-dd HH:mm:ss" from CSV or AddExpense
         let parser = DateFormatter()
-        parser.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        if let date = parser.date(from: self) {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            return formatter.string(from: date)
-        }
-        // Fallback for just yyyy-MM-dd
-        parser.dateFormat = "yyyy-MM-dd"
-        if let date = parser.date(from: self) {
-             let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            return formatter.string(from: date)
+        // Try the robust formats or just simple one for display helper
+        let formats = ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy"]
+        
+        for format in formats {
+            parser.dateFormat = format
+            if let date = parser.date(from: self) {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                return formatter.string(from: date)
+            }
         }
         return self
     }

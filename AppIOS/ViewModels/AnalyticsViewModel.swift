@@ -87,13 +87,24 @@ class AnalyticsViewModel: ObservableObject {
         for expense in outflows {
             // Try parse date
             var date: Date? = nil
+            
+            // Try multiple formats
+            let formats = [
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy-MM-dd",
+                "dd/MM/yyyy",
+                "dd-MM-yyyy",
+                "yyyy/MM/dd"
+            ]
+            
             if let dStr = expense.startedDate {
-                 if dStr.count > 10 {
-                     dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                 } else {
-                     dateFormatter.dateFormat = "yyyy-MM-dd"
-                 }
-                 date = dateFormatter.date(from: dStr)
+                for format in formats {
+                    dateFormatter.dateFormat = format
+                    if let d = dateFormatter.date(from: dStr) {
+                        date = d
+                        break
+                    }
+                }
             }
             
             if let d = date {
