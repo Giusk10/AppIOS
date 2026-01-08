@@ -56,6 +56,7 @@ struct DashboardView: View {
                                 }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden) // Fix black background issue
                     .refreshable {
                         viewModel.fetchExpenses()
                     }
@@ -176,9 +177,6 @@ struct ExpenseCard: View {
             .cornerRadius(12)
             .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
     }
 }
 

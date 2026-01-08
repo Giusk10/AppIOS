@@ -8,6 +8,7 @@ struct AppIOSApp: App {
         WindowGroup {
             if authManager.isAuthenticated {
                 ContentView()
+                    .preferredColorScheme(.light) // <--- AGGIUNGI QUESTO
             } else {
                 AuthView()
             }
