@@ -58,20 +58,14 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    HStack {
-                         NavigationLink(destination: UploadView()) {
-                            Image(systemName: "square.and.arrow.down")
+                    Button(action: {
+                        AuthManager.shared.logout()
+                    }) {
+                         HStack {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("Logout")
                         }
-                        
-                        Button(action: {
-                            AuthManager.shared.logout()
-                        }) {
-                             HStack {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                Text("Logout")
-                            }
-                            .foregroundColor(.red)
-                        }
+                        .foregroundColor(.red)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
