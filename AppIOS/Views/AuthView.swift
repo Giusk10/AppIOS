@@ -28,9 +28,10 @@ struct AuthView: View {
                         Image("SpendyLogo")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 80, height: 80)
+                            .frame(width: 100, height: 100)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .padding(.top, 40)
+                            .padding(.top, 10)
+                            .padding(.bottom, 0)
                         
                         VStack(spacing: 12) {
                             Text("Bentornato su Spendy")
@@ -44,7 +45,7 @@ struct AuthView: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
                         }
-                        .padding(.top, 40)
+                        .padding(.top, 0)
                         
                         // Card Area
                         VStack(spacing: 24) {
