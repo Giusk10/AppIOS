@@ -9,7 +9,7 @@ class AuthManager: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
-    private let baseURL = "http://100.117.226.152:8080/Auth/rest/auth"
+    private let baseURL = "https://khondor03-Spendy.hf.space/Auth/rest/auth"
     private let keychainService = "com.appios.auth"
     private let keychainAccount = "accessToken"
     

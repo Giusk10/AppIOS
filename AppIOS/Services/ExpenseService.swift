@@ -5,7 +5,7 @@ import Combine
 class ExpenseService: ObservableObject {
     static let shared = ExpenseService()
     
-    private let baseURL = "http://100.117.226.152:8080/Expense/rest/expense"
+    private let baseURL = "https://khondor03-Spendy.hf.space/Expense/rest/expense"
     
     private init() {}
     
@@ -41,10 +41,7 @@ class ExpenseService: ObservableObject {
     }
     
     func deleteAllExpenses() async throws {
-        let expenses = try await fetchExpenses()
-        for expense in expenses {
-            try await deleteExpense(expense)
-        }
+        try await performRequestNoResponse(endpoint: "/deleteAllExpenses", method: "DELETE")
     }
     
     func getMonthlyStats(year: Int) async -> [String: Double]? {

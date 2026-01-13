@@ -1,5 +1,5 @@
 import Foundation
 
 struct Constants {
-    static let baseURL = "http://localhost:8080"
+    static let baseURL = "https://khondor03-Spendy.hf.space"
 }
