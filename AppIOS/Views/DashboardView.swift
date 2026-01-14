@@ -50,31 +50,6 @@ struct DashboardView: View {
                             .padding()
                     }
                     
-                    // Search Bar
-                    if isSearchVisible {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.spendySecondaryText)
-                            TextField("Cerca spese...", text: $searchText)
-                                .foregroundColor(.spendyText)
-                            
-                            if !searchText.isEmpty {
-                                Button(action: {
-                                    searchText = ""
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.spendySecondaryText)
-                            }
-                        }
-                    }
-                        .padding(10)
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .padding(.horizontal)
-                        .padding(.top, 16)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-                    
                     List {
                         ForEach(filteredExpenses) { expense in
                             ExpenseCard(expense: expense)
@@ -103,43 +78,43 @@ struct DashboardView: View {
             .navigationTitle("Spese")
             .accentColor(.spendyText) // Ensure Dark accent for navigation items
             .navigationBarTitleDisplayMode(.inline)
+            .searchableIf(isPresented: $isSearchVisible, text: $searchText)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    HStack(spacing: 16) {
-                        Button(action: {
-                            AuthManager.shared.logout()
-                        }) {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                                .foregroundColor(.spendyRed)
-                        }
-                        
-                        Button(action: {
-                            withAnimation {
-                                isSearchVisible.toggle()
-                                if !isSearchVisible {
-                                    searchText = "" // Clear search when hiding
-                                }
+                    if !isSearchVisible {
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                AuthManager.shared.logout()
+                            }) {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .foregroundColor(.spendyRed)
                             }
-                        }) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.primary)
+                            
+                            Button(action: {
+                                isSearchVisible.toggle()
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.primary)
+                            }
                         }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                     HStack {
-                        Button(action: {
-                            showingDeleteAlert = true
-                        }) {
-                            Image(systemName: "trash")
-                        }
-                        .foregroundColor(.spendyRed) // Explicit Red color
-                        .disabled(viewModel.expenses.isEmpty)
-
-                        NavigationLink(destination: AddExpenseView()) {
-                            Image(systemName: "plus.circle.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .font(.title2)
+                    if !isSearchVisible {
+                         HStack {
+                            Button(action: {
+                                showingDeleteAlert = true
+                            }) {
+                                Image(systemName: "trash")
+                            }
+                            .foregroundColor(.spendyRed) // Explicit Red color
+                            .disabled(viewModel.expenses.isEmpty)
+    
+                            NavigationLink(destination: AddExpenseView()) {
+                                Image(systemName: "plus.circle.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .font(.title2)
+                            }
                         }
                     }
                 }
