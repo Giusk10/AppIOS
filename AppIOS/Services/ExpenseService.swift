@@ -84,7 +84,7 @@ class ExpenseService: ObservableObject {
     
     func fetchExpensesByMonth(month: Int, year: Int) async throws -> [Expense] {
         let body = [
-            "month": String(month),
+            "month": String(format: "%02d", month),
             "year": String(year)
         ]
         

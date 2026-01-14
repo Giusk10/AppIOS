@@ -108,7 +108,8 @@ struct AnalyticsView: View {
                                             }
                                             .pickerStyle(.menu)
                                             .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 4) // Slight padding increase to "make bigger"
+                                            .layoutPriority(1) // Give priority to month name to prevent truncation
+                                            .padding(.vertical, 4)
                                             .background(Color.white)
                                             .cornerRadius(8)
                                             
@@ -118,7 +119,8 @@ struct AnalyticsView: View {
                                                 }
                                             }
                                             .pickerStyle(.menu)
-                                            .frame(maxWidth: .infinity)
+                                            .frame(width: 100) // Fixed width for year is sufficient
+                                            .padding(.vertical, 4)
                                             .background(Color.white)
                                             .cornerRadius(8)
                                         }

@@ -4,7 +4,15 @@ struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingDeleteAlert = false
     @State private var searchText = ""
-    @State private var isSearchVisible = false
+    @FocusState private var isSearchFocused: Bool
+    
+    enum TransactionFilter: String, CaseIterable {
+        case all = "Tutte"
+        case income = "Entrate"
+        case expenses = "Uscite"
+    }
+    
+    @State private var selectedFilter: TransactionFilter = .all
     
     // Computed property for total balance
     var totalBalance: Double {
@@ -12,10 +20,22 @@ struct DashboardView: View {
     }
     
     var filteredExpenses: [Expense] {
+        let expenses = viewModel.expenses
+        let filteredByType: [Expense]
+        
+        switch selectedFilter {
+        case .all:
+            filteredByType = expenses
+        case .income:
+            filteredByType = expenses.filter { $0.amount > 0 }
+        case .expenses:
+            filteredByType = expenses.filter { $0.amount < 0 }
+        }
+        
         if searchText.isEmpty {
-            return viewModel.expenses
+            return filteredByType
         } else {
-            return viewModel.expenses.filter { $0.userDescription.localizedCaseInsensitiveContains(searchText) }
+            return filteredByType.filter { $0.userDescription.localizedCaseInsensitiveContains(searchText) }
         }
     }
     
@@ -26,22 +46,110 @@ struct DashboardView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Header Summary
-                    VStack(spacing: 8) {
-                        Text("Total Balance")
-                            .font(.subheadline)
-                            .foregroundColor(.spendySecondaryText)
-                        Text(totalBalance, format: .currency(code: "EUR"))
-                            .font(.system(size: 34, weight: .bold, design: .rounded))
-                            .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
+                    // Custom Header with Search Bar and Actions
+                    HStack(spacing: 12) {
+                        
+                        if !isSearchFocused {
+                            // Logout Button
+                            Button(action: {
+                                AuthManager.shared.logout()
+                            }) {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.spendyRed)
+                                    .frame(width: 40, height: 40)
+                            }
+                            .transition(.scale.combined(with: .opacity))
+                        }
+
+                        // Search Bar
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.spendySecondaryText)
+                            
+                            TextField("Cerca spese...", text: $searchText)
+                                .focused($isSearchFocused)
+                                .foregroundColor(.spendyText)
+                                .submitLabel(.search)
+                            
+                            if !searchText.isEmpty || isSearchFocused {
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        searchText = ""
+                                        isSearchFocused = false
+                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                    }
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.spendySecondaryText)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity) // Allow expansion
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                        .onTapGesture {
+                             isSearchFocused = true
+                        }
+                        
+                        if !isSearchFocused {
+                            // Actions (Trash, Add)
+                            HStack(spacing: 12) {
+                                Button(action: {
+                                    showingDeleteAlert = true
+                                }) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.spendyRed)
+                                        .frame(width: 40, height: 40)
+                                }
+                                .disabled(viewModel.expenses.isEmpty)
+                                
+                                NavigationLink(destination: AddExpenseView()) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .symbolRenderingMode(.hierarchical)
+                                        .font(.system(size: 28))
+                                        .foregroundColor(.spendyPrimary)
+                                }
+                            }
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .animation(.spring(), value: isSearchFocused) // Animate layout changes
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
+                    
+                    // Header Summary & Filters
+                    VStack(spacing: 16) {
+                        VStack(spacing: 8) {
+                            Text("Total Balance")
+                                .font(.subheadline)
+                                .foregroundColor(.spendySecondaryText)
+                            Text(totalBalance, format: .currency(code: "EUR"))
+                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                                .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
+                        }
+                        
+                        // Filter Segmented Control (Restored)
+                        Picker("Filtro", selection: $selectedFilter) {
+                            ForEach(TransactionFilter.allCases, id: \.self) { filter in
+                                Text(filter.rawValue).tag(filter)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
                     .background(Color.white)
+                    .cornerRadius(20, corners: [.bottomLeft, .bottomRight])
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
                     .overlay(
                         viewModel.isLoading ? ProgressView().frame(maxWidth: .infinity, alignment: .trailing).padding() : nil
                     )
-                    .shadow(color: Color.black.opacity(0.00), radius: 0, x: 0, y: 0) // Explicitly remove shadow
                     
                     if let errorMessage = viewModel.errorMessage {
                          Text(errorMessage)
@@ -64,6 +172,7 @@ struct DashboardView: View {
                                     }
                                     .tint(.spendyRed)
                                 }
+                        }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden) // Fix black background issue
@@ -72,53 +181,8 @@ struct DashboardView: View {
                         viewModel.fetchExpenses()
                     }
                 }
-                .background(Color.spendyBackground)
             }
-            }
-            .navigationTitle("Spese")
-            .accentColor(.spendyText) // Ensure Dark accent for navigation items
-            .navigationBarTitleDisplayMode(.inline)
-            .searchableIf(isPresented: $isSearchVisible, text: $searchText)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if !isSearchVisible {
-                        HStack(spacing: 16) {
-                            Button(action: {
-                                AuthManager.shared.logout()
-                            }) {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .foregroundColor(.spendyRed)
-                            }
-                            
-                            Button(action: {
-                                isSearchVisible.toggle()
-                            }) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.primary)
-                            }
-                        }
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if !isSearchVisible {
-                         HStack {
-                            Button(action: {
-                                showingDeleteAlert = true
-                            }) {
-                                Image(systemName: "trash")
-                            }
-                            .foregroundColor(.spendyRed) // Explicit Red color
-                            .disabled(viewModel.expenses.isEmpty)
-    
-                            NavigationLink(destination: AddExpenseView()) {
-                                Image(systemName: "plus.circle.fill")
-                                    .symbolRenderingMode(.hierarchical)
-                                    .font(.title2)
-                            }
-                        }
-                    }
-                }
-            }
+            .navigationBarHidden(true) // Hide default navigation bar
             .onAppear {
                  viewModel.fetchExpenses()
             }
@@ -194,6 +258,22 @@ struct ExpenseCard: View {
             .cornerRadius(12)
             .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
+    }
+}
+
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
     }
 }
 
