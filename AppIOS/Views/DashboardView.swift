@@ -125,6 +125,7 @@ struct DashboardView: View {
             } message: {
                 Text("Are you sure you want to delete all expenses? This action cannot be undone.")
             }
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if !isSearchFocused {
@@ -132,6 +133,7 @@ struct DashboardView: View {
                             AuthManager.shared.logout()
                         }) {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.spendyText)
                         }
                         .transition(.opacity)
@@ -139,52 +141,76 @@ struct DashboardView: View {
                 }
                 
                 ToolbarItem(placement: .principal) {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.spendySecondaryText)
-                        
-                        TextField("Cerca spese...", text: $searchText)
-                            .focused($isSearchFocused)
-                            .foregroundColor(.spendyText)
-                            .submitLabel(.search)
-                            .frame(minWidth: 100) // Minimum width to be visible/clickable
-                        
-                        if isSearchFocused || !searchText.isEmpty {
+                    Group {
+                        if !isSearchFocused && searchText.isEmpty {
+                            // Collapsed State: Capsule Button
                             Button(action: {
                                 withAnimation(.spring()) {
-                                    searchText = ""
-                                    isSearchFocused = false
-                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                    isSearchFocused = true
                                 }
                             }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.spendySecondaryText)
+                                HStack(spacing: 6) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.gray)
+                                    Text("Cerca")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .frame(minWidth: 200) // Much wider to reach towards trash button
+                                .background(Color(UIColor.systemGray6))
+                                .clipShape(Capsule())
                             }
-                            .transition(.opacity)
+                        } else {
+                            // Expanded State: Search Bar
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.gray)
+                                
+                                TextField("Cerca spese...", text: $searchText)
+                                    .focused($isSearchFocused)
+                                    .foregroundColor(.spendyText)
+                                    .submitLabel(.search)
+                                
+                                if !searchText.isEmpty || isSearchFocused {
+                                    Button(action: {
+                                        withAnimation(.spring()) {
+                                            searchText = ""
+                                            isSearchFocused = false
+                                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                        }
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(UIColor.systemGray6))
+                            .clipShape(Capsule())
                         }
                     }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .background(Color.white.opacity(0.2), in: Capsule()) // Subtle background for the search area
-                    // On iOS, principle item width is constrained. 
-                    // To make it expand properly, we might need to rely on the removal of other items 
-                    // giving it more space, which SwiftUI does automatically for .principal.
                     .animation(.spring(), value: isSearchFocused)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !isSearchFocused {
-                        HStack {
+                        HStack(spacing: 16) {
                             Button(action: {
                                 showingDeleteAlert = true
                             }) {
                                 Image(systemName: "trash")
+                                    .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(.spendyRed)
                             }
                             .disabled(viewModel.expenses.isEmpty)
                             
                             NavigationLink(destination: AddExpenseView()) {
                                 Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.spendyPrimary)
                             }
                         }
