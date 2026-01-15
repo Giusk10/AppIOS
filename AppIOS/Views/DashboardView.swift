@@ -56,9 +56,10 @@ struct DashboardView: View {
                             }) {
                                 Image(systemName: "rectangle.portrait.and.arrow.right")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.spendyText)
                                     .frame(width: 44, height: 44)
-                                    .background(.ultraThinMaterial, in: Circle())
+                                    .background(Color.white, in: Circle())
+                                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                             }
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -70,7 +71,7 @@ struct DashboardView: View {
                             
                             TextField("Cerca spese...", text: $searchText)
                                 .focused($isSearchFocused)
-                                .foregroundColor(.white) // Liquid glass usually implies light text on dark or blur
+                                .foregroundColor(.spendyText)
                                 .submitLabel(.search)
                             
                             if !searchText.isEmpty || isSearchFocused {
@@ -89,7 +90,7 @@ struct DashboardView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity) // Allow expansion
-                        .background(.ultraThinMaterial, in: Capsule())
+                        .background(Color.white, in: Capsule())
                         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2) // Maintain shadow
                         .onTapGesture {
                              isSearchFocused = true
@@ -105,7 +106,8 @@ struct DashboardView: View {
                                         .font(.system(size: 18, weight: .semibold))
                                         .foregroundColor(.spendyRed)
                                         .frame(width: 44, height: 44)
-                                        .background(.ultraThinMaterial, in: Circle())
+                                        .background(Color.white, in: Circle())
+                                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                                 }
                                 .disabled(viewModel.expenses.isEmpty)
                                 
@@ -114,7 +116,8 @@ struct DashboardView: View {
                                         .font(.system(size: 20, weight: .semibold)) // Standardize size
                                         .foregroundColor(.spendyPrimary)
                                         .frame(width: 44, height: 44)
-                                        .background(.ultraThinMaterial, in: Circle())
+                                        .background(Color.white, in: Circle())
+                                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                                 }
                             }
                             .transition(.scale.combined(with: .opacity))
