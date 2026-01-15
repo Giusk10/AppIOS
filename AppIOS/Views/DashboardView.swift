@@ -15,8 +15,18 @@ struct DashboardView: View {
     @State private var selectedFilter: TransactionFilter = .all
     
     // Computed property for total balance
+    // Computed property for total balance
     var totalBalance: Double {
-        viewModel.expenses.reduce(0) { $0 + $1.amount }
+        let expensesToSum: [Expense]
+        switch selectedFilter {
+        case .all:
+            expensesToSum = viewModel.expenses
+        case .income:
+            expensesToSum = viewModel.expenses.filter { $0.amount > 0 }
+        case .expenses:
+            expensesToSum = viewModel.expenses.filter { $0.amount < 0 }
+        }
+        return expensesToSum.reduce(0) { $0 + $1.amount }
     }
     
     var filteredExpenses: [Expense] {
@@ -153,9 +163,7 @@ struct DashboardView: View {
                     .background(Color.white)
                     .cornerRadius(20, corners: [.bottomLeft, .bottomRight])
                     .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-                    .overlay(
-                        viewModel.isLoading ? ProgressView().frame(maxWidth: .infinity, alignment: .trailing).padding() : nil
-                    )
+
                     
                     if let errorMessage = viewModel.errorMessage {
                          Text(errorMessage)
