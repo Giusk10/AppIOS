@@ -83,52 +83,48 @@ struct DashboardView: View {
                             .padding()
                     }
                     
-                    List {
-                        ForEach(filteredExpenses.prefix(2)) { expense in
-                            ExpenseCard(expense: expense)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        viewModel.deleteExpense(expense)
-                                    } label: {
-                                        Label("Elimina", systemImage: "trash")
+                    VStack(spacing: 0) {
+                        VStack(spacing: 0) {
+                            if !filteredExpenses.isEmpty {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(filteredExpenses.prefix(2).enumerated()), id: \.element.id) { index, expense in
+                                        ZStack {
+                                            NavigationLink(destination: ExpenseDetailView(expense: expense)) {
+                                                EmptyView()
+                                            }
+                                            .opacity(0)
+                                            
+                                            ExpenseRow(expense: expense)
+                                        }
+                                        
+                                        Divider()
+                                            .padding(.leading, 16)
                                     }
-                                    .tint(.spendyRed)
+                                    
+                                    NavigationLink(destination: AllExpensesView()) {
+                                        HStack {
+                                            Text("Vedi tutte le spese")
+                                                .fontWeight(.semibold)
+                                            Image(systemName: "arrow.right")
+                                        }
+                                        .font(.subheadline)
+                                        .foregroundColor(.white)
+                                        .padding()
+                                        .frame(maxWidth: .infinity)
+                                        .background(Color.spendyPrimary)
+                                    }
                                 }
-                        }
-                        
-                        if !filteredExpenses.isEmpty {
-                            ZStack {
-                                NavigationLink(destination: AllExpensesView()) {
-                                    EmptyView()
-                                }
-                                .opacity(0)
-                                
-                                HStack {
-                                    Text("Vedi tutte le spese")
-                                        .fontWeight(.semibold)
-                                    Image(systemName: "arrow.right")
-                                }
-                                .font(.subheadline)
-                                .foregroundColor(.spendyPrimary)
-                                .padding()
-                                .frame(maxWidth: .infinity)
                                 .background(Color.white)
                                 .cornerRadius(12)
                                 .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                                .padding(.horizontal, 16)
                             }
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
+                        .padding(.top, 10)
+                        // .padding(.bottom, 20) - Removed bottom padding or kept minimal as needed, 20 is fine
+                        .padding(.bottom, 20)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .refreshable {
-                        viewModel.fetchExpenses()
-                    }
+                    .frame(maxHeight: .infinity, alignment: .top) // Push content to top
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -193,6 +189,46 @@ struct DashboardView: View {
 
 // MARK: - Subviews & Extensions (Invariati)
 
+struct ExpenseRow: View {
+    let expense: Expense
+    
+    var body: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(expense.userDescription)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .foregroundColor(.spendyText)
+                
+                if let date = expense.startedDate {
+                    Text(date.formattedDate())
+                        .font(.caption)
+                        .foregroundColor(.spendySecondaryText)
+                }
+                
+                if let category = expense.category {
+                    Text(category)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.spendyPrimary.opacity(0.1))
+                        .foregroundColor(.spendyPrimary)
+                        .cornerRadius(6)
+                }
+            }
+            
+            Spacer()
+            
+            Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
+        }
+        .padding(16)
+    }
+}
+
 struct ExpenseCard: View {
     let expense: Expense
     
@@ -203,42 +239,10 @@ struct ExpenseCard: View {
             }
             .opacity(0)
             
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(expense.userDescription)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .foregroundColor(.spendyText)
-                    
-                    if let date = expense.startedDate {
-                        Text(date.formattedDate())
-                            .font(.caption)
-                            .foregroundColor(.spendySecondaryText)
-                    }
-                    
-                    if let category = expense.category {
-                        Text(category)
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.spendyPrimary.opacity(0.1))
-                            .foregroundColor(.spendyPrimary)
-                            .cornerRadius(6)
-                    }
-                }
-                
-                Spacer()
-                
-                Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
-            }
-            .padding(16)
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+            ExpenseRow(expense: expense)
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
     }
 }
