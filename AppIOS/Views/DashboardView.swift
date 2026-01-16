@@ -3,14 +3,6 @@ import SwiftUI
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingDeleteAlert = false
-    @State private var searchText = ""
-    
-    // CORREZIONE 1: Aggiungiamo uno Stato dedicato per sapere se la ricerca è attiva (mostra tasto Annulla)
-    @State private var isSearchVisible = false // Controlla la visibilità della search bar
-    @State private var isSearching = false
-    
-    // Manteniamo il FocusState se vuoi gestire la tastiera, ma per la UI useremo isSearching
-    @FocusState private var isSearchFocused: Bool
     
     enum TransactionFilter: String, CaseIterable {
         case all = "Tutte"
@@ -47,11 +39,7 @@ struct DashboardView: View {
             filteredByType = expenses.filter { $0.amount < 0 }
         }
         
-        if searchText.isEmpty {
-            return filteredByType
-        } else {
-            return filteredByType.filter { $0.userDescription.localizedCaseInsensitiveContains(searchText) }
-        }
+        return filteredByType
     }
     
     var body: some View {
@@ -96,7 +84,7 @@ struct DashboardView: View {
                     }
                     
                     List {
-                        ForEach(filteredExpenses) { expense in
+                        ForEach(filteredExpenses.prefix(2)) { expense in
                             ExpenseCard(expense: expense)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -110,6 +98,31 @@ struct DashboardView: View {
                                     .tint(.spendyRed)
                                 }
                         }
+                        
+                        if !filteredExpenses.isEmpty {
+                            ZStack {
+                                NavigationLink(destination: AllExpensesView()) {
+                                    EmptyView()
+                                }
+                                .opacity(0)
+                                
+                                HStack {
+                                    Text("Vedi tutte le spese")
+                                        .fontWeight(.semibold)
+                                    Image(systemName: "arrow.right")
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.spendyPrimary)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color.white)
+                                .cornerRadius(12)
+                                .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                            }
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
@@ -122,42 +135,18 @@ struct DashboardView: View {
             .onAppear {
                  viewModel.fetchExpenses()
             }
-            // MARK: - IMPLEMENTAZIONE NATIVA (.searchable)
-            // Mostra la search bar solo se isSearchVisible è true
-            .searchableIf(isSearchVisible, text: $searchText, isPresented: $isSearching, placement: .navigationBarDrawer(displayMode: .always))
+            // Search bar removed from dashboard
             
             .toolbar {
                 
                 // 1. SINISTRA: Profilo & Search Toggle
                 ToolbarItem(placement: .navigationBarLeading) {
-                    HStack(spacing: 12) {
-                        if !isSearching {
-                            Button(action: {
-                                AuthManager.shared.logout()
-                            }) {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.primary)
-                            }
-                            .transition(.opacity)
-                            
-                            // Search Toggle Button
-                            Button(action: {
-                                withAnimation {
-                                    isSearchVisible.toggle()
-                                    if isSearchVisible {
-                                        isSearching = true
-                                    } else {
-                                        isSearching = false
-                                        searchText = ""
-                                    }
-                                }
-                            }) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
-                            }
-                        }
+                    Button(action: {
+                        AuthManager.shared.logout()
+                    }) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
                     }
                 }
                 
@@ -170,26 +159,23 @@ struct DashboardView: View {
                 
                 // 3. DESTRA: Bottoni (Si nascondono se isSearching è true)
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if !isSearching {
-                        HStack(spacing: 8) {
-                            // Bottone Cestino
-                            Button(action: {
-                                showingDeleteAlert = true
-                            }) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.red)
-                            }
-                            .disabled(viewModel.expenses.isEmpty)
-                            
-                            // Bottone Aggiungi (+)
-                            NavigationLink(destination: AddExpenseView()) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(.blue)
-                            }
+                    HStack(spacing: 8) {
+                        // Bottone Cestino
+                        Button(action: {
+                            showingDeleteAlert = true
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.red)
                         }
-                        .transition(.opacity)
+                        .disabled(viewModel.expenses.isEmpty)
+                        
+                        // Bottone Aggiungi (+)
+                        NavigationLink(destination: AddExpenseView()) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
                     }
                 }
             }
@@ -310,13 +296,3 @@ extension String {
     }
 }
 
-extension View {
-    @ViewBuilder
-    func searchableIf(_ condition: Bool, text: Binding<String>, isPresented: Binding<Bool>, placement: SearchFieldPlacement = .automatic) -> some View {
-        if condition {
-            self.searchable(text: text, isPresented: isPresented, placement: placement, prompt: "Cerca")
-        } else {
-            self
-        }
-    }
-}
