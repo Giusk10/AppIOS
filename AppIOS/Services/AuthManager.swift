@@ -227,10 +227,9 @@ class AuthManager: ObservableObject {
     
     func logout() {
         clearTokens()
-        // Keep PIN? Usually yes, for convenience next time, or logic says "UserPIN" is persistent.
-        // User might want to clear PIN on logout though?
-        // Spec says: "Logout: AuthManager cancella Access e Refresh token... Stato .unauthenticated".
-        // Doesn't say delete PIN.
+        // Delete PIN to force setup next time as requested
+        deleteKeychain(account: kUserPIN)
+        
         DispatchQueue.main.async {
             self.authState = .unauthenticated
         }

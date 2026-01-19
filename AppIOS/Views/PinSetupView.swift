@@ -5,7 +5,7 @@ struct PinSetupView: View {
     @State private var confirmPin: String = ""
     @State private var isConfirming: Bool = false
     @State private var showError: Bool = false
-    @State private var message: String = "Crea un PIN a 4 cifre"
+    @State private var message: String = "Crea un PIN a 6 cifre"
     
     @ObservedObject var authManager = AuthManager.shared
     
@@ -34,7 +34,7 @@ struct PinSetupView: View {
                 }
                 
                 HStack(spacing: 20) {
-                    ForEach(0..<4) { index in
+                    ForEach(0..<6) { index in
                         let char = isConfirming ? confirmPin : pin
                         Circle()
                             .fill(index < char.count ? Color.white : Color.gray.opacity(0.3))
@@ -80,16 +80,16 @@ struct PinSetupView: View {
     
     private func addDigit(_ digit: String) {
         if !isConfirming {
-            if pin.count < 4 {
+            if pin.count < 6 {
                 pin.append(digit)
-                if pin.count == 4 {
+                if pin.count == 6 {
                     startConfirmation()
                 }
             }
         } else {
-            if confirmPin.count < 4 {
+            if confirmPin.count < 6 {
                 confirmPin.append(digit)
-                if confirmPin.count == 4 {
+                if confirmPin.count == 6 {
                     validatePin()
                 }
             }
@@ -107,7 +107,7 @@ struct PinSetupView: View {
             } else {
                 // Back to first entry
                 isConfirming = false
-                message = "Crea un PIN a 4 cifre"
+                message = "Crea un PIN a 6 cifre"
                 pin = "" // Clear first pin too? Or keep it? Usually better to restart or just allow editing.
                 // To keep it simple, if they delete empty confirm, we go back to step 1 with empty pin.
             }
@@ -136,7 +136,7 @@ struct PinSetupView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 // Reset flow
                 isConfirming = false
-                message = "Crea un PIN a 4 cifre"
+                message = "Crea un PIN a 6 cifre"
                 pin = ""
                 confirmPin = ""
                 showError = false

@@ -38,7 +38,7 @@ struct LockView: View {
                 
                 // PIN Dots
                 HStack(spacing: 20) {
-                    ForEach(0..<4) { index in
+                    ForEach(0..<6) { index in
                         Circle()
                             .fill(index < pin.count ? Color.white : Color.gray.opacity(0.3))
                             .frame(width: 20, height: 20)
@@ -99,9 +99,9 @@ struct LockView: View {
     }
     
     private func addDigit(_ digit: String) {
-        if pin.count < 4 {
+        if pin.count < 6 {
             pin.append(digit)
-            if pin.count == 4 {
+            if pin.count == 6 {
                 verifyPin()
             }
         }
