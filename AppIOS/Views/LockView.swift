@@ -14,19 +14,8 @@ struct LockView: View {
 
     var body: some View {
         ZStack {
-            // Background - Deep gradient or blurred image to enhance glass effect
-            LinearGradient(
-                colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.4)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            .overlay(.ultraThinMaterial)  // Frost effect base
-
-            // Or just keep the app content blurred behind?
-            // User asked for "Liquid Glass", usually implies seeing what's behind or having a rich background.
-            // For a lock screen, usually we want a solid or heavily blurred background.
-            // Let's us a nice dark gradient background to make the "Glass" buttons pop.
-            Color.black.opacity(0.4).ignoresSafeArea()
+            // Background - White as requested
+            Color.white.ignoresSafeArea()
 
             VStack(spacing: 50) {
                 Spacer()
@@ -34,13 +23,11 @@ struct LockView: View {
                 VStack(spacing: 20) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 50))
-                        .foregroundColor(.white.opacity(0.9))
-                        .shadow(radius: 5)
+                        .foregroundColor(.black)
 
                     Text("Inserisci codice")
                         .font(.system(size: 22, weight: .regular))
-                        .foregroundColor(.white)
-                        .shadow(radius: 5)
+                        .foregroundColor(.black)
                 }
 
                 // PIN Dots and Keypad
@@ -49,15 +36,12 @@ struct LockView: View {
                     HStack(spacing: 25) {
                         ForEach(0..<6) { index in
                             Circle()
-                                .fill(index < pin.count ? Color.white : Color.white.opacity(0.2))
+                                .fill(index < pin.count ? Color.black : Color.clear)
                                 .frame(width: 14, height: 14)
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                                        .stroke(Color.black, lineWidth: 1)
                                 )
-                                .shadow(
-                                    color: index < pin.count ? .white.opacity(0.5) : .clear,
-                                    radius: 8, x: 0, y: 0)
                         }
                     }
                     .shake($showError)
@@ -81,7 +65,7 @@ struct LockView: View {
                                 }) {
                                     Image(systemName: "faceid")
                                         .font(.system(size: 28))
-                                        .foregroundColor(.white)
+                                        .foregroundColor(.black)
                                         .frame(width: 75, height: 75)
                                 }
                             }
@@ -97,7 +81,7 @@ struct LockView: View {
                         }) {
                             Text("Elimina")
                                 .font(.system(size: 16, weight: .regular))
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                                 .frame(width: 75, height: 75)
                         }
                     }
@@ -142,13 +126,11 @@ struct LockView: View {
         } else {
             showError = true
             pin = ""
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.error)
         }
     }
 }
 
-// Reusable Liquid Glass Button
+// Reusable iOS Phone App Style Button
 struct LiquidKeypadButton: View {
     let number: String
     let action: () -> Void
@@ -156,19 +138,15 @@ struct LiquidKeypadButton: View {
     var body: some View {
         Button(action: action) {
             ZStack {
-                // Native Apple Liquid Glass Style
+                // Circular button matching iOS Phone Keypad (Light Gray on White)
                 Circle()
-                    .fill(.ultraThinMaterial)  // Native glass effect
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.2), lineWidth: 0.5)  // Subtle rim
-                    )
+                    .fill(Color.gray.opacity(0.2))
 
                 Text(number)
-                    .font(.system(size: 34, weight: .regular))
-                    .foregroundColor(.white)
+                    .font(.system(size: 36, weight: .regular))
+                    .foregroundColor(.black)
             }
-            .frame(width: 75, height: 75)
+            .frame(width: 78, height: 78)
         }
     }
 }
