@@ -1,20 +1,20 @@
-import SwiftUI
 import Charts
+import SwiftUI
 
 struct AnalyticsView: View {
     @StateObject private var viewModel = AnalyticsViewModel()
-    
+
     @State private var selectedYear = "2025"
     @State private var selectedFilter = "Tutte le spese"
     @State private var selectedMonth: String? = nil
     @State private var animateContent = false
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 Color.spendyBackground
                     .ignoresSafeArea()
-                
+
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
                         if viewModel.isLoading {
@@ -25,15 +25,15 @@ struct AnalyticsView: View {
                             filterSection
                                 .opacity(animateContent ? 1 : 0)
                                 .offset(y: animateContent ? 0 : 20)
-                            
+
                             summaryCardsSection
                                 .opacity(animateContent ? 1 : 0)
                                 .offset(y: animateContent ? 0 : 30)
-                            
+
                             chartSection
                                 .opacity(animateContent ? 1 : 0)
                                 .offset(y: animateContent ? 0 : 40)
-                            
+
                             categoriesSection
                                 .opacity(animateContent ? 1 : 0)
                                 .offset(y: animateContent ? 0 : 50)
@@ -57,7 +57,7 @@ struct AnalyticsView: View {
             }
         }
     }
-    
+
     private var loadingView: some View {
         VStack(spacing: 20) {
             ProgressView()
@@ -69,7 +69,7 @@ struct AnalyticsView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
     }
-    
+
     private func errorView(_ message: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -84,7 +84,7 @@ struct AnalyticsView: View {
         .cornerRadius(16)
         .padding(.horizontal, 20)
     }
-    
+
     private var filterSection: some View {
         VStack(spacing: 16) {
             HStack(spacing: 12) {
@@ -100,7 +100,7 @@ struct AnalyticsView: View {
                         }
                     }
                 }
-                
+
                 FilterDropdown(
                     label: "Filtro",
                     value: selectedFilter,
@@ -120,7 +120,7 @@ struct AnalyticsView: View {
                     }
                 }
             }
-            
+
             if viewModel.filterMode == .month {
                 HStack(spacing: 12) {
                     Picker("Mese", selection: $viewModel.selectedMonth) {
@@ -135,7 +135,7 @@ struct AnalyticsView: View {
                     .background(Color.white)
                     .cornerRadius(12)
                     .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
-                    
+
                     Picker("Anno", selection: $viewModel.selectedYearInt) {
                         ForEach(Array(2020...2030), id: \.self) { year in
                             Text(String(year)).tag(year)
@@ -151,15 +151,19 @@ struct AnalyticsView: View {
                 }
             } else if viewModel.filterMode == .dateRange {
                 VStack(spacing: 12) {
-                    DatePicker("Da", selection: $viewModel.selectedDateRange.start, displayedComponents: .date)
-                    DatePicker("A", selection: $viewModel.selectedDateRange.end, displayedComponents: .date)
+                    DatePicker(
+                        "Da", selection: $viewModel.selectedDateRange.start,
+                        displayedComponents: .date)
+                    DatePicker(
+                        "A", selection: $viewModel.selectedDateRange.end, displayedComponents: .date
+                    )
                 }
                 .padding(16)
                 .background(Color.white)
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
             }
-            
+
             Button(action: {
                 viewModel.applyFilters()
             }) {
@@ -178,7 +182,7 @@ struct AnalyticsView: View {
         }
         .padding(.horizontal, 20)
     }
-    
+
     private var summaryCardsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
@@ -189,7 +193,7 @@ struct AnalyticsView: View {
                     icon: "arrow.down.circle.fill",
                     gradient: [Color.spendyRed, Color.spendyPink]
                 )
-                
+
                 ModernSummaryCard(
                     title: "Spesa Media",
                     value: viewModel.averageExpense,
@@ -197,7 +201,7 @@ struct AnalyticsView: View {
                     icon: "chart.bar.fill",
                     gradient: [Color.spendyBlue, Color.spendyCyan]
                 )
-                
+
                 ModernSummaryCard(
                     title: "Uscita Maggiore",
                     value: viewModel.highestExpense,
@@ -209,7 +213,7 @@ struct AnalyticsView: View {
             .padding(.horizontal, 20)
         }
     }
-    
+
     private var chartSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
@@ -217,13 +221,13 @@ struct AnalyticsView: View {
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.spendyText)
-                
+
                 Text("Spese registrate nel corso dell'anno")
                     .font(.subheadline)
                     .foregroundColor(.spendySecondaryText)
             }
             .padding(.horizontal, 20)
-            
+
             Chart {
                 ForEach(viewModel.monthlyData) { item in
                     LineMark(
@@ -239,7 +243,7 @@ struct AnalyticsView: View {
                         )
                     )
                     .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
-                    
+
                     AreaMark(
                         x: .value("Data", item.month),
                         y: .value("Importo", item.amount)
@@ -253,8 +257,10 @@ struct AnalyticsView: View {
                         )
                     )
                 }
-                
-                if let selectedMonth, let item = viewModel.monthlyData.first(where: { $0.month == selectedMonth }) {
+
+                if let selectedMonth,
+                    let item = viewModel.monthlyData.first(where: { $0.month == selectedMonth })
+                {
                     RuleMark(x: .value("Data", selectedMonth))
                         .foregroundStyle(Color.spendyPrimary.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
@@ -314,7 +320,7 @@ struct AnalyticsView: View {
         .shadow(color: Color.black.opacity(0.06), radius: 16, x: 0, y: 6)
         .padding(.horizontal, 20)
     }
-    
+
     private var categoriesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Top Categorie")
@@ -322,11 +328,12 @@ struct AnalyticsView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.spendyText)
                 .padding(.horizontal, 20)
-            
+
             VStack(spacing: 0) {
-                ForEach(Array(viewModel.topCategories.enumerated()), id: \.element.id) { index, category in
+                ForEach(Array(viewModel.topCategories.enumerated()), id: \.element.id) {
+                    index, category in
                     CategoryRow(category: category, index: index + 1)
-                    
+
                     if index < viewModel.topCategories.count - 1 {
                         Divider()
                             .padding(.leading, 56)
@@ -346,7 +353,7 @@ struct FilterDropdown<Content: View>: View {
     let value: String
     let icon: String
     @ViewBuilder let content: Content
-    
+
     var body: some View {
         Menu {
             content
@@ -355,7 +362,7 @@ struct FilterDropdown<Content: View>: View {
                 Image(systemName: icon)
                     .font(.system(size: 14))
                     .foregroundColor(.spendyPrimary)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
                         .font(.caption2)
@@ -365,9 +372,9 @@ struct FilterDropdown<Content: View>: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.spendyText)
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.down")
                     .font(.caption)
                     .foregroundColor(.spendySecondaryText)
@@ -386,7 +393,7 @@ struct ModernSummaryCard: View {
     let subtitle: String
     let icon: String
     let gradient: [Color]
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -394,25 +401,25 @@ struct ModernSummaryCard: View {
                     Circle()
                         .fill(Color.white.opacity(0.2))
                         .frame(width: 40, height: 40)
-                    
+
                     Image(systemName: icon)
                         .font(.system(size: 18))
                         .foregroundColor(.white)
                 }
-                
+
                 Spacer()
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(value, format: .currency(code: "EUR"))
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                
+
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.white.opacity(0.9))
-                
+
                 Text(subtitle)
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.7))
@@ -431,44 +438,40 @@ struct ModernSummaryCard: View {
 struct CategoryRow: View {
     let category: AnalyticsViewModel.CategoryMetric
     let index: Int
-    
+
     var categoryColor: Color {
-        switch category.name.lowercased() {
-        case "food", "cibo": return .spendyOrange
-        case "transport", "trasporti": return .spendyBlue
-        case "shopping": return .spendyPink
-        case "entertainment", "intrattenimento": return .spendyAccent
-        case "bills", "bollette": return .spendyRed
-        case "health", "salute": return .spendyGreen
-        default: return .spendyPrimary
-        }
+        CategoryMapper.color(for: category.name)
     }
-    
+
+    var categoryIcon: String {
+        CategoryMapper.icon(for: category.name)
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
                     .fill(categoryColor.opacity(0.15))
                     .frame(width: 42, height: 42)
-                
-                Text("\(index)")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+
+                Image(systemName: categoryIcon)
+                    .font(.system(size: 18))
                     .foregroundColor(categoryColor)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(category.name)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.spendyText)
-                
+
                 Text("\(category.count) movimenti")
                     .font(.caption)
                     .foregroundColor(.spendySecondaryText)
             }
-            
+
             Spacer()
-            
+
             Text(category.amount, format: .currency(code: "EUR"))
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundColor(.spendyText)

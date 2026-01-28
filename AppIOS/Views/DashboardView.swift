@@ -360,11 +360,11 @@ struct ExpenseRow: View {
     let expense: Expense
 
     var categoryColor: Color {
-        CategoryMapper.color(for: expense.category, description: expense.userDescription)
+        CategoryMapper.color(for: expense.category)
     }
 
     var categoryIcon: String {
-        CategoryMapper.icon(for: expense.category, description: expense.userDescription)
+        CategoryMapper.icon(for: expense.category)
     }
 
     var body: some View {
