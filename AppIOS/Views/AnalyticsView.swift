@@ -4,10 +4,10 @@ import Charts
 struct AnalyticsView: View {
     @StateObject private var viewModel = AnalyticsViewModel()
     
-    // Mock state for UI filters
     @State private var selectedYear = "2025"
-    @State private var selectedFilter = "Tutte le spese importate"
+    @State private var selectedFilter = "Tutte le spese"
     @State private var selectedMonth: String? = nil
+    @State private var animateContent = false
     
     var body: some View {
         NavigationView {
@@ -15,341 +15,465 @@ struct AnalyticsView: View {
                 Color.spendyBackground
                     .ignoresSafeArea()
                 
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
-                        
                         if viewModel.isLoading {
-                            ProgressView()
-                                .padding()
+                            loadingView
                         } else if let error = viewModel.errorMessage {
-                            Text(error)
-                                .foregroundColor(.spendyRed)
-                                .padding()
+                            errorView(error)
                         } else {
-                            // 1. Filter Section
-                            VStack(spacing: 16) {
-                                // Year Filter
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Anno di analisi")
-                                        .font(.caption)
-                                        .foregroundColor(.spendySecondaryText)
-                                        .fontWeight(.medium)
-                                    
-                                    Menu {
-                                        ForEach(Array(2020...2030), id: \.self) { year in
-                                            Button(String(year)) {
-                                                selectedYear = String(year)
-                                                viewModel.updateFilters(year: selectedYear)
-                                            }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text(selectedYear)
-                                                .font(.body)
-                                                .foregroundColor(.spendyText)
-                                            Spacer()
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(.spendySecondaryText)
-                                                .font(.caption)
-                                        }
-                                        .padding()
-                                        .background(Color.white)
-                                        .cornerRadius(12)
-                                        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
-                                    }
-                                }
-                                .padding(.horizontal)
-                                
-                                // Type Filter
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Filtra Spese")
-                                        .font(.caption)
-                                        .foregroundColor(.spendySecondaryText)
-                                        .fontWeight(.medium)
-                                    
-                                    // Mode Selection
-                                    Menu {
-                                        Button("Tutte le spese") {
-                                            viewModel.filterMode = .all
-                                            selectedFilter = "Tutte le spese"
-                                        }
-                                        Button("Per Mese") {
-                                            viewModel.filterMode = .month
-                                            selectedFilter = "Per Mese"
-                                        }
-                                        Button("Per Data") {
-                                            viewModel.filterMode = .dateRange
-                                            selectedFilter = "Per Data"
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text(selectedFilter)
-                                                .font(.body)
-                                                .foregroundColor(.spendyText)
-                                            Spacer()
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(.spendySecondaryText)
-                                                .font(.caption)
-                                        }
-                                        .padding()
-                                        .background(Color.white)
-                                        .cornerRadius(12)
-                                        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
-                                    }
-                                    
-                                    // Conditional Inputs
-                                    if viewModel.filterMode == .month {
-                                        HStack {
-                                            Picker("Mese", selection: $viewModel.selectedMonth) {
-                                                ForEach(1...12, id: \.self) { month in
-                                                    Text(Calendar.current.monthSymbols[month - 1])
-                                                        .tag(month)
-                                                }
-                                            }
-                                            .pickerStyle(.menu)
-                                            .frame(maxWidth: .infinity)
-                                            .layoutPriority(1) // Give priority to month name to prevent truncation
-                                            .padding(.vertical, 4)
-                                            .background(Color.white)
-                                            .cornerRadius(8)
-                                            
-                                            Picker("Anno", selection: $viewModel.selectedYearInt) {
-                                                ForEach(Array(2020...2030), id: \.self) { year in
-                                                    Text(String(year)).tag(year)
-                                                }
-                                            }
-                                            .pickerStyle(.menu)
-                                            .frame(width: 100) // Fixed width for year is sufficient
-                                            .padding(.vertical, 4)
-                                            .background(Color.white)
-                                            .cornerRadius(8)
-                                        }
-                                    } else if viewModel.filterMode == .dateRange {
-                                        VStack(spacing: 8) {
-                                            DatePicker("Da", selection: $viewModel.selectedDateRange.start, displayedComponents: .date)
-                                            DatePicker("A", selection: $viewModel.selectedDateRange.end, displayedComponents: .date)
-                                        }
-                                        .padding(8)
-                                        .background(Color.white)
-                                        .cornerRadius(8)
-                                    }
-                                    
-                                    // Apply Button
-                                    Button(action: {
-                                        viewModel.applyFilters()
-                                    }) {
-                                        Text("Applica filtri")
-                                            .font(.caption)
-                                            .fontWeight(.bold)
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 12)
-                                            .background(Color.spendyPrimary)
-                                            .foregroundColor(.white)
-                                            .cornerRadius(12)
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
+                            filterSection
+                                .opacity(animateContent ? 1 : 0)
+                                .offset(y: animateContent ? 0 : 20)
                             
-                            // 2. Summary Cards
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: 16) {
-                                    SummaryCard(title: "USCITE TOTALI", value: viewModel.totalBalance, subtitle: "\(viewModel.totalTransactions) movimenti monitorati", color: .spendyRed)
-                                    SummaryCard(title: "SPESA MEDIA", value: viewModel.averageExpense, subtitle: "Calcolata su tutte le transazioni", color: .spendyBlue)
-                                    SummaryCard(title: "USCITA MAGGIORE", value: viewModel.highestExpense, subtitle: "Il movimento più rilevante registrato", color: .spendyOrange)
-                                }
-                                .padding(.horizontal)
-                            }
+                            summaryCardsSection
+                                .opacity(animateContent ? 1 : 0)
+                                .offset(y: animateContent ? 0 : 30)
                             
-                            // 3. Chart Section
-                            VStack(alignment: .leading, spacing: 16) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Andamento mensile")
-                                        .font(.headline)
-                                        .foregroundColor(.spendyText)
-                                    Text("Importi assoluti delle uscite registrate per mese")
-                                        .font(.caption)
-                                        .foregroundColor(.spendySecondaryText)
-                                }
-                                .padding(.horizontal)
-                                
-                                Chart {
-                                    ForEach(viewModel.monthlyData) { item in
-                                        LineMark(
-                                            x: .value("Data", item.month),
-                                            y: .value("Importo", item.amount)
-                                        )
-                                        .interpolationMethod(.catmullRom)
-                                        .foregroundStyle(Color.spendyPrimary.gradient)
-                                        .lineStyle(StrokeStyle(lineWidth: 3))
-                                        
-                                        AreaMark(
-                                            x: .value("Data", item.month),
-                                            y: .value("Importo", item.amount)
-                                        )
-                                        .interpolationMethod(.catmullRom)
-                                        .foregroundStyle(
-                                            LinearGradient(
-                                                colors: [.spendyPrimary.opacity(0.2), .spendyPrimary.opacity(0.0)],
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
-                                        )
-                                    }
-                                    
-                                    if let selectedMonth, let item = viewModel.monthlyData.first(where: { $0.month == selectedMonth }) {
-                                        RuleMark(x: .value("Data", selectedMonth))
-                                            .foregroundStyle(Color.spendySecondaryText.opacity(0.5))
-                                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
-                                            .annotation(position: .topLeading, alignment: .center) {
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text(item.month)
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                    
-                                                    HStack(spacing: 4) {
-                                                        Text("value :")
-                                                            .font(.caption)
-                                                            .foregroundColor(.spendyPrimary)
-                                                        Text(item.amount, format: .currency(code: "EUR"))
-                                                            .font(.caption)
-                                                            .fontWeight(.bold)
-                                                            .foregroundColor(.spendyPrimary)
-                                                    }
-                                                }
-                                                .padding(12)
-                                                .background(Color.white)
-                                                .cornerRadius(12)
-                                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .stroke(Color.gray.opacity(0.1), lineWidth: 1)
-                                                )
-                                            }
-                                    }
-                                }
-                                .chartYAxis {
-                                    AxisMarks(position: .leading)
-                                }
-                                .frame(height: 250)
-                                .padding(.horizontal)
-                                .chartOverlay { proxy in
-                                    GeometryReader { geometry in
-                                        Rectangle().fill(.clear).contentShape(Rectangle())
-                                            .gesture(
-                                                DragGesture()
-                                                    .onChanged { value in
-                                                        let x = value.location.x
-                                                        if let month: String = proxy.value(atX: x) {
-                                                            selectedMonth = month
-                                                        }
-                                                    }
-                                                    .onEnded { _ in
-                                                        selectedMonth = nil
-                                                    }
-                                            )
-                                            .onTapGesture { location in
-                                                 let x = location.x
-                                                 if let month: String = proxy.value(atX: x) {
-                                                     selectedMonth = month
-                                                 }
-                                            }
-                                    }
-                                }
-                            }
-                            .padding(.vertical)
-                            .background(Color.white)
-                            .cornerRadius(12)
-                            .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
-                            .padding(.horizontal)
+                            chartSection
+                                .opacity(animateContent ? 1 : 0)
+                                .offset(y: animateContent ? 0 : 40)
                             
-                            // 4. Categories Section
-                            LazyVStack(alignment: .leading, spacing: 16) {
-                                Text("Categorie più rilevanti")
-                                    .font(.headline)
-                                    .foregroundColor(.spendyText)
-                                    .padding(.horizontal)
-                                
-                                ForEach(viewModel.topCategories) { category in
-                                    HStack {
-                                        VStack(alignment: .leading) {
-                                            Text(category.name)
-                                                .font(.subheadline)
-                                                .fontWeight(.semibold)
-                                                .foregroundColor(.spendyText)
-                                            Text("\(category.count) movimenti")
-                                                .font(.caption)
-                                                .foregroundColor(.spendySecondaryText)
-                                        }
-                                        Spacer()
-                                        Text(category.amount, format: .currency(code: "EUR"))
-                                            .font(.subheadline)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(.spendyText)
-                                    }
-                                    .padding(.horizontal)
-                                    Divider()
-                                        .padding(.leading)
-                                }
-                            }
-                            .padding(.vertical)
-                            .background(Color.white)
-                            .cornerRadius(12)
-                            .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
-                            .padding(.horizontal)
+                            categoriesSection
+                                .opacity(animateContent ? 1 : 0)
+                                .offset(y: animateContent ? 0 : 50)
                         }
                     }
-                    .padding(.vertical)
+                    .padding(.vertical, 20)
+                    .padding(.bottom, 100)
                 }
             }
-            .navigationTitle("Dashboard finanziaria")
+            .navigationTitle("Analytics")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.spendyBackground)
             .onAppear {
                 viewModel.loadData()
                 viewModel.fetchMonthlyStats(year: selectedYear)
+                withAnimation(.easeOut(duration: 0.6)) {
+                    animateContent = true
+                }
             }
             .refreshable {
                 viewModel.loadData()
             }
         }
     }
+    
+    private var loadingView: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text("Caricamento dati...")
+                .font(.subheadline)
+                .foregroundColor(.spendySecondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
+    
+    private func errorView(_ message: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.spendyOrange)
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.spendyText)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.spendyOrange.opacity(0.1))
+        .cornerRadius(16)
+        .padding(.horizontal, 20)
+    }
+    
+    private var filterSection: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                FilterDropdown(
+                    label: "Anno",
+                    value: selectedYear,
+                    icon: "calendar"
+                ) {
+                    ForEach(Array(2020...2030), id: \.self) { year in
+                        Button(String(year)) {
+                            selectedYear = String(year)
+                            viewModel.updateFilters(year: selectedYear)
+                        }
+                    }
+                }
+                
+                FilterDropdown(
+                    label: "Filtro",
+                    value: selectedFilter,
+                    icon: "line.3.horizontal.decrease"
+                ) {
+                    Button("Tutte le spese") {
+                        viewModel.filterMode = .all
+                        selectedFilter = "Tutte le spese"
+                    }
+                    Button("Per Mese") {
+                        viewModel.filterMode = .month
+                        selectedFilter = "Per Mese"
+                    }
+                    Button("Per Data") {
+                        viewModel.filterMode = .dateRange
+                        selectedFilter = "Per Data"
+                    }
+                }
+            }
+            
+            if viewModel.filterMode == .month {
+                HStack(spacing: 12) {
+                    Picker("Mese", selection: $viewModel.selectedMonth) {
+                        ForEach(1...12, id: \.self) { month in
+                            Text(Calendar.current.monthSymbols[month - 1]).tag(month)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(.spendyPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                    
+                    Picker("Anno", selection: $viewModel.selectedYearInt) {
+                        ForEach(Array(2020...2030), id: \.self) { year in
+                            Text(String(year)).tag(year)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(.spendyPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                }
+            } else if viewModel.filterMode == .dateRange {
+                VStack(spacing: 12) {
+                    DatePicker("Da", selection: $viewModel.selectedDateRange.start, displayedComponents: .date)
+                    DatePicker("A", selection: $viewModel.selectedDateRange.end, displayedComponents: .date)
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+            }
+            
+            Button(action: {
+                viewModel.applyFilters()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Applica filtri")
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Color.spendyGradient)
+                .cornerRadius(14)
+                .shadow(color: Color.spendyPrimary.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private var summaryCardsSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ModernSummaryCard(
+                    title: "Uscite Totali",
+                    value: viewModel.totalBalance,
+                    subtitle: "\(viewModel.totalTransactions) movimenti",
+                    icon: "arrow.down.circle.fill",
+                    gradient: [Color.spendyRed, Color.spendyPink]
+                )
+                
+                ModernSummaryCard(
+                    title: "Spesa Media",
+                    value: viewModel.averageExpense,
+                    subtitle: "Per transazione",
+                    icon: "chart.bar.fill",
+                    gradient: [Color.spendyBlue, Color.spendyCyan]
+                )
+                
+                ModernSummaryCard(
+                    title: "Uscita Maggiore",
+                    value: viewModel.highestExpense,
+                    subtitle: "Movimento più alto",
+                    icon: "flame.fill",
+                    gradient: [Color.spendyOrange, Color.spendyRed]
+                )
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+    
+    private var chartSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Andamento Mensile")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.spendyText)
+                
+                Text("Spese registrate nel corso dell'anno")
+                    .font(.subheadline)
+                    .foregroundColor(.spendySecondaryText)
+            }
+            .padding(.horizontal, 20)
+            
+            Chart {
+                ForEach(viewModel.monthlyData) { item in
+                    LineMark(
+                        x: .value("Data", item.month),
+                        y: .value("Importo", item.amount)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.spendyPrimary, .spendyAccent],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
+                    
+                    AreaMark(
+                        x: .value("Data", item.month),
+                        y: .value("Importo", item.amount)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.spendyPrimary.opacity(0.25), .spendyAccent.opacity(0.05)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+                
+                if let selectedMonth, let item = viewModel.monthlyData.first(where: { $0.month == selectedMonth }) {
+                    RuleMark(x: .value("Data", selectedMonth))
+                        .foregroundStyle(Color.spendyPrimary.opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                        .annotation(position: .top, alignment: .center) {
+                            VStack(spacing: 4) {
+                                Text(item.month)
+                                    .font(.caption)
+                                    .foregroundColor(.spendySecondaryText)
+                                Text(item.amount, format: .currency(code: "EUR"))
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(Color.spendyGradient)
+                            }
+                            .padding(12)
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                        }
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                        .foregroundStyle(Color.spendySecondaryText.opacity(0.2))
+                    AxisValueLabel()
+                        .foregroundStyle(Color.spendySecondaryText)
+                }
+            }
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisValueLabel()
+                        .foregroundStyle(Color.spendySecondaryText)
+                }
+            }
+            .frame(height: 250)
+            .padding(.horizontal, 20)
+            .chartOverlay { proxy in
+                GeometryReader { _ in
+                    Rectangle().fill(.clear).contentShape(Rectangle())
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    if let month: String = proxy.value(atX: value.location.x) {
+                                        selectedMonth = month
+                                    }
+                                }
+                                .onEnded { _ in
+                                    selectedMonth = nil
+                                }
+                        )
+                }
+            }
+        }
+        .padding(.vertical, 20)
+        .background(Color.white)
+        .cornerRadius(24)
+        .shadow(color: Color.black.opacity(0.06), radius: 16, x: 0, y: 6)
+        .padding(.horizontal, 20)
+    }
+    
+    private var categoriesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Top Categorie")
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.spendyText)
+                .padding(.horizontal, 20)
+            
+            VStack(spacing: 0) {
+                ForEach(Array(viewModel.topCategories.enumerated()), id: \.element.id) { index, category in
+                    CategoryRow(category: category, index: index + 1)
+                    
+                    if index < viewModel.topCategories.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+            .background(Color.white)
+            .cornerRadius(20)
+            .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+            .padding(.horizontal, 20)
+        }
+    }
 }
 
-struct SummaryCard: View {
+struct FilterDropdown<Content: View>: View {
+    let label: String
+    let value: String
+    let icon: String
+    @ViewBuilder let content: Content
+    
+    var body: some View {
+        Menu {
+            content
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(.spendyPrimary)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.caption2)
+                        .foregroundColor(.spendySecondaryText)
+                    Text(value)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.spendyText)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundColor(.spendySecondaryText)
+            }
+            .padding(14)
+            .background(Color.white)
+            .cornerRadius(14)
+            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+        }
+    }
+}
+
+struct ModernSummaryCard: View {
     let title: String
     let value: Double
     let subtitle: String
-    let color: Color
+    let icon: String
+    let gradient: [Color]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 11))
-                .fontWeight(.bold)
-                .foregroundColor(.spendySecondaryText)
-                .textCase(.uppercase)
-                .kerning(0.5)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 18))
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+            }
             
-            Text(value, format: .currency(code: "EUR"))
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(.spendyText)
-            
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundColor(.spendySecondaryText)
-                .lineLimit(2)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(value, format: .currency(code: "EUR"))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white.opacity(0.9))
+                
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+            }
         }
-        .frame(width: 250, height: 130, alignment: .topLeading)
+        .frame(width: 200)
         .padding(20)
-        .background(Color.white)
-        .cornerRadius(16)
-        .overlay(
-            Rectangle()
-                .frame(height: 4)
-                .foregroundColor(color),
-            alignment: .top
+        .background(
+            LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
         )
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .cornerRadius(20)
+        .shadow(color: gradient[0].opacity(0.4), radius: 12, x: 0, y: 6)
+    }
+}
+
+struct CategoryRow: View {
+    let category: AnalyticsViewModel.CategoryMetric
+    let index: Int
+    
+    var categoryColor: Color {
+        switch category.name.lowercased() {
+        case "food", "cibo": return .spendyOrange
+        case "transport", "trasporti": return .spendyBlue
+        case "shopping": return .spendyPink
+        case "entertainment", "intrattenimento": return .spendyAccent
+        case "bills", "bollette": return .spendyRed
+        case "health", "salute": return .spendyGreen
+        default: return .spendyPrimary
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(categoryColor.opacity(0.15))
+                    .frame(width: 42, height: 42)
+                
+                Text("\(index)")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(categoryColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(category.name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.spendyText)
+                
+                Text("\(category.count) movimenti")
+                    .font(.caption)
+                    .foregroundColor(.spendySecondaryText)
+            }
+            
+            Spacer()
+            
+            Text(category.amount, format: .currency(code: "EUR"))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(.spendyText)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }

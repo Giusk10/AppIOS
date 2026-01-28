@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingDeleteAlert = false
+    @State private var animateBalance = false
     
     enum TransactionFilter: String, CaseIterable {
         case all = "Tutte"
@@ -12,7 +13,6 @@ struct DashboardView: View {
     
     @State private var selectedFilter: TransactionFilter = .all
     
-    // MARK: - Computed Properties
     var totalBalance: Double {
         let expensesToSum: [Expense]
         switch selectedFilter {
@@ -28,18 +28,14 @@ struct DashboardView: View {
     
     var filteredExpenses: [Expense] {
         let expenses = viewModel.expenses
-        let filteredByType: [Expense]
-        
         switch selectedFilter {
         case .all:
-            filteredByType = expenses
+            return expenses
         case .income:
-            filteredByType = expenses.filter { $0.amount > 0 }
+            return expenses.filter { $0.amount > 0 }
         case .expenses:
-            filteredByType = expenses.filter { $0.amount < 0 }
+            return expenses.filter { $0.amount < 0 }
         }
-        
-        return filteredByType
     }
     
     var body: some View {
@@ -48,184 +44,382 @@ struct DashboardView: View {
                 Color.spendyBackground
                     .ignoresSafeArea()
                 
-                VStack(spacing: 0) {
-                    
-                    // --- SOMMARIO SALDO & FILTRI ---
-                    VStack(spacing: 16) {
-                        VStack(spacing: 8) {
-                            Text("Total Balance")
-                                .font(.subheadline)
-                                .foregroundColor(.spendySecondaryText)
-                            Text(totalBalance, format: .currency(code: "EUR"))
-                                .font(.system(size: 34, weight: .bold, design: .rounded))
-                                .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        balanceCard
+                        filterSection
+                        
+                        if let errorMessage = viewModel.errorMessage {
+                            errorBanner(errorMessage)
                         }
                         
-                        Picker("Filtro", selection: $selectedFilter) {
-                            ForEach(TransactionFilter.allCases, id: \.self) { filter in
-                                Text(filter.rawValue).tag(filter)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
+                        recentTransactionsSection
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(Color.white)
-                    .cornerRadius(20, corners: [.bottomLeft, .bottomRight])
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-                    .zIndex(1)
-
-                    if let errorMessage = viewModel.errorMessage {
-                         Text(errorMessage)
-                            .foregroundColor(.spendyRed)
-                            .font(.caption)
-                            .padding()
-                    }
-                    
-                    VStack(spacing: 0) {
-                        VStack(spacing: 0) {
-                            if !filteredExpenses.isEmpty {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(filteredExpenses.prefix(2).enumerated()), id: \.element.id) { index, expense in
-                                        ZStack {
-                                            NavigationLink(destination: ExpenseDetailView(expense: expense)) {
-                                                EmptyView()
-                                            }
-                                            .opacity(0)
-                                            
-                                            ExpenseRow(expense: expense)
-                                        }
-                                        
-                                        Divider()
-                                            .padding(.leading, 16)
-                                    }
-                                    
-                                    NavigationLink(destination: AllExpensesView()) {
-                                        HStack {
-                                            Text("Vedi tutte le spese")
-                                                .fontWeight(.semibold)
-                                            Image(systemName: "arrow.right")
-                                        }
-                                        .font(.subheadline)
-                                        .foregroundColor(.white)
-                                        .padding()
-                                        .frame(maxWidth: .infinity)
-                                        .background(Color.spendyPrimary)
-                                    }
-                                }
-                                .background(Color.white)
-                                .cornerRadius(12)
-                                .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
-                                .padding(.horizontal, 16)
-                            }
-                        }
-                        .padding(.top, 10)
-                        // .padding(.bottom, 20) - Removed bottom padding or kept minimal as needed, 20 is fine
-                        .padding(.bottom, 20)
-                    }
-                    .frame(maxHeight: .infinity, alignment: .top) // Push content to top
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 100)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
-                 viewModel.fetchExpenses()
+                viewModel.fetchExpenses()
+                withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
+                    animateBalance = true
+                }
             }
-            // Search bar removed from dashboard
-            
             .toolbar {
-                
-                // 1. SINISTRA: Profilo & Search Toggle
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         AuthManager.shared.logout()
                     }) {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Color.spendySecondaryText)
                     }
                 }
                 
-                // 2. CENTRO: Titolo Spendy
                 ToolbarItem(placement: .principal) {
                     Text("Spendy")
-                        .font(.headline) // Adjust font style as needed, maybe custom font if used elsewhere
-                        .foregroundColor(.primary)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.spendyGradient)
                 }
                 
-                // 3. DESTRA: Bottoni (Si nascondono se isSearching è true)
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 8) {
-                        // Bottone Cestino
+                    HStack(spacing: 12) {
                         Button(action: {
                             showingDeleteAlert = true
                         }) {
                             Image(systemName: "trash")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.red)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.spendyRed.opacity(viewModel.expenses.isEmpty ? 0.4 : 1))
                         }
                         .disabled(viewModel.expenses.isEmpty)
                         
-                        // Bottone Aggiungi (+)
                         NavigationLink(destination: AddExpenseView()) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.blue)
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(Color.spendyGradient)
                         }
                     }
                 }
             }
         }
-        .alert("Delete All Expenses", isPresented: $showingDeleteAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
+        .alert("Elimina tutte le spese", isPresented: $showingDeleteAlert) {
+            Button("Annulla", role: .cancel) { }
+            Button("Elimina", role: .destructive) {
                 viewModel.deleteAllExpenses()
             }
         } message: {
-            Text("Are you sure you want to delete all expenses? This action cannot be undone.")
+            Text("Sei sicuro di voler eliminare tutte le spese? Questa azione non può essere annullata.")
         }
+    }
+    
+    private var balanceCard: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.spendyPrimary, Color.spendyAccent],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: Color.spendyPrimary.opacity(0.4), radius: 20, x: 0, y: 10)
+                
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 200)
+                    .offset(x: 100, y: -50)
+                
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 150)
+                    .offset(x: -120, y: 60)
+                
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Saldo Totale")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white.opacity(0.85))
+                            
+                            Text(totalBalance, format: .currency(code: "EUR"))
+                                .font(.system(size: 38, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .contentTransition(.numericText())
+                        }
+                        Spacer()
+                        
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 50, height: 50)
+                            .overlay {
+                                Image(systemName: totalBalance >= 0 ? "arrow.up.right" : "arrow.down.right")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                    }
+                    
+                    HStack(spacing: 16) {
+                        StatItem(
+                            title: "Entrate",
+                            value: viewModel.expenses.filter { $0.amount > 0 }.reduce(0) { $0 + $1.amount },
+                            icon: "arrow.down.left",
+                            positive: true
+                        )
+                        
+                        Divider()
+                            .frame(height: 40)
+                            .background(Color.white.opacity(0.3))
+                        
+                        StatItem(
+                            title: "Uscite",
+                            value: abs(viewModel.expenses.filter { $0.amount < 0 }.reduce(0) { $0 + $1.amount }),
+                            icon: "arrow.up.right",
+                            positive: false
+                        )
+                    }
+                    .padding(.top, 8)
+                }
+                .padding(24)
+            }
+            .frame(height: 200)
+        }
+        .opacity(animateBalance ? 1 : 0)
+        .offset(y: animateBalance ? 0 : 20)
+    }
+    
+    private var filterSection: some View {
+        HStack(spacing: 10) {
+            ForEach(TransactionFilter.allCases, id: \.self) { filter in
+                FilterChip(
+                    title: filter.rawValue,
+                    isSelected: selectedFilter == filter,
+                    action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedFilter = filter
+                        }
+                    }
+                )
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.spendyOrange)
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.spendyText)
+            Spacer()
+        }
+        .padding()
+        .background(Color.spendyOrange.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    private var recentTransactionsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Transazioni Recenti")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.spendyText)
+                
+                Spacer()
+                
+                NavigationLink(destination: AllExpensesView()) {
+                    HStack(spacing: 4) {
+                        Text("Vedi tutte")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(Color.spendyGradient)
+                }
+            }
+            
+            if filteredExpenses.isEmpty {
+                emptyStateView
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(filteredExpenses.prefix(5).enumerated()), id: \.element.id) { index, expense in
+                        NavigationLink(destination: ExpenseDetailView(expense: expense)) {
+                            ExpenseRow(expense: expense)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        if index < min(4, filteredExpenses.count - 1) {
+                            Divider()
+                                .padding(.leading, 60)
+                        }
+                    }
+                }
+                .background(Color.white)
+                .cornerRadius(20)
+                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+            }
+        }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "tray")
+                .font(.system(size: 48))
+                .foregroundStyle(Color.spendyGradient)
+            
+            Text("Nessuna transazione")
+                .font(.headline)
+                .foregroundColor(.spendyText)
+            
+            Text("Aggiungi la tua prima spesa\nper iniziare a monitorare")
+                .font(.subheadline)
+                .foregroundColor(.spendySecondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(40)
+        .background(Color.white)
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
     }
 }
 
-// MARK: - Subviews & Extensions (Invariati)
+struct StatItem: View {
+    let title: String
+    let value: Double
+    let icon: String
+    let positive: Bool
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white.opacity(0.7))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+                Text(value, format: .currency(code: "EUR"))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(isSelected ? .white : .spendySecondaryText)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background {
+                    if isSelected {
+                        Capsule()
+                            .fill(Color.spendyGradient)
+                            .shadow(color: Color.spendyPrimary.opacity(0.3), radius: 8, x: 0, y: 4)
+                    } else {
+                        Capsule()
+                            .fill(Color.white)
+                            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+    }
+}
 
 struct ExpenseRow: View {
     let expense: Expense
     
+    var categoryColor: Color {
+        switch expense.category?.lowercased() {
+        case "food", "cibo", "alimentari", "ristorante", "ristoranti", "bar", "pizzeria": return .spendyOrange
+        case "transport", "trasporti", "taxi", "uber", "benzina", "carburante", "treno", "bus", "metro": return .spendyBlue
+        case "shopping", "abbigliamento", "vestiti", "moda", "accessori": return .spendyPink
+        case "entertainment", "intrattenimento", "cinema", "teatro", "concerti", "sport", "palestra", "hobby": return .spendyAccent
+        case "bills", "bollette", "utenze", "affitto", "mutuo", "assicurazione", "telefono", "internet": return .spendyRed
+        case "health", "salute", "farmacia", "medico", "dentista", "ospedale": return .spendyGreen
+        case "viaggi", "travel", "hotel", "volo", "vacanza": return .spendyCyan
+        case "casa", "home", "arredamento", "elettrodomestici": return .spendyOrange
+        case "tech", "tecnologia", "elettronica", "computer", "smartphone": return .spendyBlue
+        case "stipendio", "salary", "income", "entrata", "rimborso": return .spendyGreen
+        default: return .spendyPrimary
+        }
+    }
+    
+    var categoryIcon: String {
+        switch expense.category?.lowercased() {
+        case "food", "cibo", "alimentari", "ristorante", "ristoranti", "bar", "pizzeria": return "fork.knife"
+        case "transport", "trasporti", "taxi", "uber", "benzina", "carburante": return "car.fill"
+        case "treno", "bus", "metro": return "tram.fill"
+        case "shopping", "abbigliamento", "vestiti", "moda", "accessori": return "bag.fill"
+        case "entertainment", "intrattenimento", "cinema", "teatro", "concerti": return "film.fill"
+        case "sport", "palestra": return "figure.run"
+        case "hobby": return "gamecontroller.fill"
+        case "bills", "bollette", "utenze": return "doc.text.fill"
+        case "affitto", "mutuo": return "house.fill"
+        case "assicurazione": return "shield.fill"
+        case "telefono", "internet": return "wifi"
+        case "health", "salute", "farmacia": return "cross.case.fill"
+        case "medico", "dentista", "ospedale": return "heart.fill"
+        case "viaggi", "travel", "hotel", "volo", "vacanza": return "airplane"
+        case "casa", "home", "arredamento", "elettrodomestici": return "sofa.fill"
+        case "tech", "tecnologia", "elettronica", "computer", "smartphone": return "laptopcomputer"
+        case "stipendio", "salary", "income", "entrata", "rimborso": return "banknote.fill"
+        default: return "creditcard.fill"
+        }
+    }
+    
     var body: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(categoryColor.opacity(0.15))
+                    .frame(width: 46, height: 46)
+                
+                Image(systemName: categoryIcon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(categoryColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
                 Text(expense.userDescription)
-                    .font(.headline)
-                    .lineLimit(2)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .foregroundColor(.spendyText)
+                    .lineLimit(1)
                 
                 if let date = expense.startedDate {
-                    Text(date.formattedDate())
+                    Text(date.formattedDateWithTime())
                         .font(.caption)
                         .foregroundColor(.spendySecondaryText)
-                }
-                
-                if let category = expense.category {
-                    Text(category)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.spendyPrimary.opacity(0.1))
-                        .foregroundColor(.spendyPrimary)
-                        .cornerRadius(6)
                 }
             }
             
             Spacer()
             
             Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
-                .font(.headline)
-                .fontWeight(.bold)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
 
@@ -241,8 +435,8 @@ struct ExpenseCard: View {
             
             ExpenseRow(expense: expense)
                 .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
         }
     }
 }
@@ -290,7 +484,43 @@ extension String {
                     return "Ieri, \(timeFormatter.string(from: date))"
                 } else {
                     let formatter = DateFormatter()
-                    formatter.dateFormat = "dd MMMM yyyy, HH:mm"
+                    formatter.dateFormat = "dd MMM"
+                    formatter.locale = Locale(identifier: "it_IT")
+                    return formatter.string(from: date)
+                }
+            }
+        }
+        return self
+    }
+    
+    func formattedDateWithTime() -> String {
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        let formats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd",
+            "dd/MM/yyyy",
+            "dd-MM-yyyy"
+        ]
+        
+        for format in formats {
+            parser.dateFormat = format
+            if let date = parser.date(from: self) {
+                let calendar = Calendar.current
+                let timeFormatter = DateFormatter()
+                timeFormatter.dateFormat = "HH:mm"
+                let timeString = timeFormatter.string(from: date)
+                
+                if calendar.isDateInToday(date) {
+                    return "Oggi, \(timeString)"
+                } else if calendar.isDateInYesterday(date) {
+                    return "Ieri, \(timeString)"
+                } else {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "dd MMM yyyy, HH:mm"
                     formatter.locale = Locale(identifier: "it_IT")
                     return formatter.string(from: date)
                 }
@@ -299,4 +529,3 @@ extension String {
         return self
     }
 }
-

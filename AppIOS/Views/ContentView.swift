@@ -16,7 +16,7 @@ struct ContentView: View {
                 PinSetupView()
             }
         }
-        .animation(.default, value: authManager.authState)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authManager.authState)
     }
 }
 
@@ -25,20 +25,21 @@ struct MainTabView: View {
         TabView {
             DashboardView()
                 .tabItem {
-                    Label("Expenses", systemImage: "list.bullet")
+                    Label("Home", systemImage: "house.fill")
                 }
             
             NavigationView {
-                 UploadView()
+                UploadView()
             }
             .tabItem {
-                Label("Upload", systemImage: "arrow.up.doc")
+                Label("Upload", systemImage: "arrow.up.doc.fill")
             }
             
             AnalyticsView()
                 .tabItem {
-                    Label("Analytics", systemImage: "chart.bar")
+                    Label("Analytics", systemImage: "chart.pie.fill")
                 }
         }
+        .tint(.spendyPrimary)
     }
 }

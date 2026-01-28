@@ -3,9 +3,9 @@ import SwiftUI
 struct LockView: View {
     @State private var pin: String = ""
     @State private var showError: Bool = false
+    @State private var animateContent = false
     @ObservedObject var authManager = AuthManager.shared
 
-    // Number pad layout
     let columns: [GridItem] = [
         GridItem(.flexible()),
         GridItem(.flexible()),
@@ -14,48 +14,67 @@ struct LockView: View {
 
     var body: some View {
         ZStack {
-            // Background - White as requested
             Color.white.ignoresSafeArea()
 
-            VStack(spacing: 50) {
+            Circle()
+                .fill(Color.spendyPrimary.opacity(0.06))
+                .frame(width: 400)
+                .blur(radius: 80)
+                .offset(x: -100, y: -300)
+
+            Circle()
+                .fill(Color.spendyAccent.opacity(0.05))
+                .frame(width: 300)
+                .blur(radius: 60)
+                .offset(x: 150, y: 400)
+
+            VStack(spacing: 40) {
                 Spacer()
 
-                VStack(spacing: 20) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 50))
-                        .foregroundColor(.black)
+                VStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.spendyPrimary.opacity(0.15),
+                                        Color.spendyAccent.opacity(0.1),
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 90, height: 90)
+
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 36, weight: .medium))
+                            .foregroundStyle(Color.spendyGradient)
+                    }
+                    .scaleEffect(animateContent ? 1 : 0.8)
+                    .opacity(animateContent ? 1 : 0)
 
                     Text("Inserisci codice")
-                        .font(.system(size: 22, weight: .regular))
-                        .foregroundColor(.black)
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundColor(.spendyText)
+                        .opacity(animateContent ? 1 : 0)
                 }
 
-                // PIN Dots and Keypad
                 Group {
-                    // PIN Dots - Liquid Style
-                    HStack(spacing: 25) {
+                    HStack(spacing: 20) {
                         ForEach(0..<6) { index in
-                            Circle()
-                                .fill(index < pin.count ? Color.black : Color.clear)
-                                .frame(width: 14, height: 14)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.black, lineWidth: 1)
-                                )
+                            PinDot(isFilled: index < pin.count, showError: showError)
                         }
                     }
                     .shake($showError)
-                    .padding(.bottom, 30)
+                    .padding(.bottom, 20)
 
-                    // Numpad - Liquid Glass Buttons
-                    LazyVGrid(columns: columns, spacing: 25) {
+                    LazyVGrid(columns: columns, spacing: 20) {
                         ForEach(1...9, id: \.self) { number in
-                            LiquidKeypadButton(number: "\(number)") {
+                            NativeKeypadButton(text: "\(number)") {
                                 addDigit("\(number)")
                             }
                         }
 
-                        // FaceID / Empty
                         Group {
                             if authManager.isBiometricAuthenticationInProgress {
                                 Color.clear.frame(width: 75, height: 75)
@@ -63,30 +82,38 @@ struct LockView: View {
                                 Button(action: {
                                     authManager.unlockWithBiometrics()
                                 }) {
-                                    Image(systemName: "faceid")
-                                        .font(.system(size: 28))
-                                        .foregroundColor(.black)
-                                        .frame(width: 75, height: 75)
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.spendyPrimary.opacity(0.1))
+                                            .frame(width: 75, height: 75)
+
+                                        Image(systemName: "faceid")
+                                            .font(.system(size: 28, weight: .medium))
+                                            .foregroundStyle(Color.spendyGradient)
+                                    }
                                 }
                             }
                         }
 
-                        LiquidKeypadButton(number: "0") {
+                        NativeKeypadButton(text: "0") {
                             addDigit("0")
                         }
 
-                        // Delete
                         Button(action: {
                             deleteDigit()
                         }) {
-                            Text("Elimina")
-                                .font(.system(size: 16, weight: .regular))
-                                .foregroundColor(.black)
-                                .frame(width: 75, height: 75)
+                            ZStack {
+                                Circle()
+                                    .fill(Color.clear)
+                                    .frame(width: 75, height: 75)
+
+                                Image(systemName: "delete.left")
+                                    .font(.system(size: 22, weight: .medium))
+                                    .foregroundColor(.spendySecondaryText)
+                            }
                         }
                     }
                     .padding(.horizontal, 40)
-                    .padding(.bottom, 20)
                 }
                 .opacity(authManager.isBiometricAuthenticationInProgress ? 0 : 1)
                 .animation(
@@ -97,7 +124,9 @@ struct LockView: View {
             }
         }
         .onAppear {
-            // Small delay to allow UI to settle before prompting FaceID
+            withAnimation(.easeOut(duration: 0.5)) {
+                animateContent = true
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 authManager.unlockWithBiometrics()
             }
@@ -106,7 +135,9 @@ struct LockView: View {
 
     private func addDigit(_ digit: String) {
         if pin.count < 6 {
-            pin.append(digit)
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+                pin.append(digit)
+            }
             if pin.count == 6 {
                 verifyPin()
             }
@@ -115,7 +146,9 @@ struct LockView: View {
 
     private func deleteDigit() {
         if !pin.isEmpty {
-            pin.removeLast()
+            let _ = withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+                pin.removeLast()
+            }
             showError = false
         }
     }
@@ -130,65 +163,21 @@ struct LockView: View {
     }
 }
 
-// Reusable iOS Phone App Style Button
-struct LiquidKeypadButton: View {
-    let number: String
-    let action: () -> Void
+struct PinDot: View {
+    let isFilled: Bool
+    let showError: Bool
 
     var body: some View {
-        Button(action: action) {
-            ZStack {
-                // Circular button matching iOS Phone Keypad (Light Gray on White)
+        Circle()
+            .fill(isFilled ? (showError ? Color.spendyRed : Color.spendyPrimary) : Color.clear)
+            .frame(width: 16, height: 16)
+            .overlay(
                 Circle()
-                    .fill(Color.gray.opacity(0.2))
-
-                Text(number)
-                    .font(.system(size: 36, weight: .regular))
-                    .foregroundColor(.black)
-            }
-            .frame(width: 78, height: 78)
-        }
-    }
-}
-
-// Helper for Shake Animation
-struct ShakeEffect: GeometryEffect {
-    var amount: CGFloat = 10
-    var shakesPerUnit = 3
-    var animatableData: CGFloat
-
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        ProjectionTransform(
-            CGAffineTransform(
-                translationX:
-                    amount * sin(animatableData * .pi * CGFloat(shakesPerUnit)),
-                y: 0))
-    }
-}
-
-extension View {
-    func shake(_ trigger: Binding<Bool>) -> some View {
-        self.modifier(ShakeModifier(trigger: trigger))
-    }
-}
-
-struct ShakeModifier: ViewModifier {
-    @Binding var trigger: Bool
-    @State private var animatableData: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .modifier(ShakeEffect(animatableData: animatableData))
-            .onChange(of: trigger) { _, newValue in
-                if newValue {
-                    withAnimation(.default) {
-                        animatableData = 1
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        animatableData = 0
-                        trigger = false
-                    }
-                }
-            }
+                    .stroke(
+                        showError ? Color.spendyRed : Color.spendyPrimary.opacity(0.3), lineWidth: 2
+                    )
+            )
+            .scaleEffect(isFilled ? 1.1 : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 0.5), value: isFilled)
     }
 }
