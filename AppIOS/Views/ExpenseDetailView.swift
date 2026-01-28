@@ -14,27 +14,11 @@ struct ExpenseDetailView: View {
     @State private var animateContent = false
 
     var categoryColor: Color {
-        switch expense.category?.lowercased() {
-        case "food", "cibo": return .spendyOrange
-        case "transport", "trasporti": return .spendyBlue
-        case "shopping": return .spendyPink
-        case "entertainment", "intrattenimento": return .spendyAccent
-        case "bills", "bollette": return .spendyRed
-        case "health", "salute": return .spendyGreen
-        default: return .spendyPrimary
-        }
+        CategoryMapper.color(for: expense.category, description: expense.userDescription)
     }
 
     var categoryIcon: String {
-        switch expense.category?.lowercased() {
-        case "food", "cibo": return "fork.knife"
-        case "transport", "trasporti": return "car.fill"
-        case "shopping": return "bag.fill"
-        case "entertainment", "intrattenimento": return "gamecontroller.fill"
-        case "bills", "bollette": return "doc.text.fill"
-        case "health", "salute": return "heart.fill"
-        default: return "creditcard.fill"
-        }
+        CategoryMapper.icon(for: expense.category, description: expense.userDescription)
     }
 
     var body: some View {

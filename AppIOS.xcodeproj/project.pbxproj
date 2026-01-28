@@ -255,7 +255,7 @@
 				DEVELOPMENT_TEAM = U6WN5WXGWV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Info.plist";
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Spendy;
 				"INFOPLIST_KEY_CFBundleDisplayName[sdk=iphoneos*]" = Spendy;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -292,7 +292,7 @@
 				DEVELOPMENT_TEAM = U6WN5WXGWV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Info.plist";
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Spendy;
 				"INFOPLIST_KEY_CFBundleDisplayName[sdk=iphoneos*]" = Spendy;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

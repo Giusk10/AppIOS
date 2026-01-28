@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var authManager = AuthManager.shared
-    
+
     var body: some View {
         Group {
             switch authManager.authState {
@@ -21,25 +21,28 @@ struct ContentView: View {
 }
 
 struct MainTabView: View {
+    @State private var selectedTab: TabBarItem = .home
+
     var body: some View {
-        TabView {
-            DashboardView()
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
+        ZStack(alignment: .bottom) {
+            // Main content
+            Group {
+                switch selectedTab {
+                case .home:
+                    DashboardView()
+                case .upload:
+                    NavigationView {
+                        UploadView()
+                    }
+                case .analytics:
+                    AnalyticsView()
                 }
-            
-            NavigationView {
-                UploadView()
             }
-            .tabItem {
-                Label("Upload", systemImage: "arrow.up.doc.fill")
-            }
-            
-            AnalyticsView()
-                .tabItem {
-                    Label("Analytics", systemImage: "chart.pie.fill")
-                }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Custom Tab Bar
+            CustomTabBar(selectedTab: $selectedTab)
         }
-        .tint(.spendyPrimary)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 }
