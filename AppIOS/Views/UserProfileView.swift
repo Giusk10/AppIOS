@@ -14,7 +14,7 @@ struct UserProfileView: View {
                 Color.spendyBackground.ignoresSafeArea()
 
                 VStack(spacing: 30) {
-                    Spacer().frame(height: 20)  // Add top spacing as requested
+                    Spacer().frame(height: 80)  // Increased top spacing as requested
 
                     if let user = authManager.currentUser {
                         // User Setup
@@ -79,7 +79,7 @@ struct UserProfileView: View {
                                 .animation(.easeInOut, value: hasChanges(user: user))
                             }
                         }
-                        .padding(.top, 20)
+                        .padding(.top, 30)
                     } else {
                         ProgressView()
                             .onAppear {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
+    @ObservedObject private var authManager = AuthManager.shared
     @State private var showingDeleteAlert = false
     @State private var showingProfile = false
 
@@ -74,20 +75,22 @@ struct DashboardView: View {
                     Button(action: {
                         showingProfile = true
                     }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.spendyPrimary.opacity(0.1))
-                                .frame(width: 32, height: 32)
-
-                            if let user = AuthManager.shared.currentUser {
-                                Text(user.initials)
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Color.spendyGradient)
-                            } else {
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Color.spendyGradient)
-                            }
+                        if let user = authManager.currentUser {
+                            Text(user.initials)
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Color.spendyGradient)
+                                .clipShape(Circle())
+                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        } else {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Color.spendyGradient)
+                                .clipShape(Circle())
+                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
                     }
                 }
