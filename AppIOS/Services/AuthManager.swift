@@ -194,6 +194,44 @@ class AuthManager: ObservableObject {
         return false
     }
 
+    @Published var currentUser: User?
+
+    // MARK: - User Profile
+
+    func fetchUserProfile() async {
+        guard let url = URL(string: "\(baseURL)/profile") else { return }
+
+        // Manually construct request to avoid dependency loop with NetworkManager if possible,
+        // OR use URLSession directly as done in login/register.
+        // Consistency: login/register use URLSession directly here. Let's stick to that pattern for AuthManager
+        // to keep it self-contained for auth-related calls.
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = getAccessToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                let user = try JSONDecoder().decode(User.self, from: data)
+                await MainActor.run {
+                    self.currentUser = user
+                }
+            } else {
+                print(
+                    "Failed to fetch profile: \(String(data: data, encoding: .utf8) ?? "Unknown error")"
+                )
+            }
+        } catch {
+            print("Error fetching profile: \(error)")
+        }
+    }
+
     func register(username: String, password: String, email: String, name: String, surname: String)
         async -> Bool
     {
@@ -233,9 +271,11 @@ class AuthManager: ObservableObject {
                         let refreshToken = json["refreshToken"] as? String
                     {
                         saveTokens(access: accessToken, refresh: refreshToken)
+                        await fetchUserProfile()  // Fetch profile after registration
                         await MainActor.run { self.authState = .pinSetup }  // Go to PIN setup
                     } else if let token = json["token"] as? String {
                         saveTokens(access: token, refresh: token)
+                        await fetchUserProfile()  // Fetch profile after registration
                         await MainActor.run { self.authState = .pinSetup }
                     }
                 }

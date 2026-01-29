@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingDeleteAlert = false
+    @State private var showingProfile = false
 
     enum TransactionFilter: String, CaseIterable {
         case all = "Tutte"
@@ -64,15 +65,30 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 viewModel.fetchExpenses()
+                Task {
+                    await AuthManager.shared.fetchUserProfile()
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        AuthManager.shared.logout()
+                        showingProfile = true
                     }) {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(Color.spendySecondaryText)
+                        ZStack {
+                            Circle()
+                                .fill(Color.spendyPrimary.opacity(0.1))
+                                .frame(width: 32, height: 32)
+
+                            if let user = AuthManager.shared.currentUser {
+                                Text(user.initials)
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.spendyGradient)
+                            } else {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color.spendyGradient)
+                            }
+                        }
                     }
                 }
 
@@ -112,6 +128,9 @@ struct DashboardView: View {
             Text(
                 "Sei sicuro di voler eliminare tutte le spese? Questa azione non può essere annullata."
             )
+        }
+        .sheet(isPresented: $showingProfile) {
+            UserProfileView()
         }
     }
 
