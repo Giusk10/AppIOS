@@ -21,28 +21,24 @@ struct ContentView: View {
 }
 
 struct MainTabView: View {
-    @State private var selectedTab: TabBarItem = .home
+    @State private var selectedTab: Int = 0
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Main content
-            Group {
-                switch selectedTab {
-                case .home:
-                    DashboardView()
-                case .upload:
-                    NavigationView {
-                        UploadView()
-                    }
-                case .analytics:
-                    AnalyticsView()
+        TabView(selection: $selectedTab) {
+            DashboardView()
+                .tabItem {
+                    Image(systemName: selectedTab == 0 ? "house.fill" : "house")
+                    Text("Home")
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .tag(0)
 
-            // Custom Tab Bar
-            CustomTabBar(selectedTab: $selectedTab)
+            AnalyticsView()
+                .tabItem {
+                    Image(systemName: selectedTab == 1 ? "chart.pie.fill" : "chart.pie")
+                    Text("Analytics")
+                }
+                .tag(1)
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .tint(.spendyPrimary)
     }
 }

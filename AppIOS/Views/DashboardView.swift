@@ -44,7 +44,7 @@ struct DashboardView: View {
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    LazyVStack(spacing: 20) {
                         balanceCard
                         filterSection
 
@@ -53,10 +53,12 @@ struct DashboardView: View {
                         }
 
                         recentTransactionsSection
+
+                        uploadSection
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
-                    .padding(.bottom, 60)
+                    .padding(.bottom, 100)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -253,14 +255,14 @@ struct DashboardView: View {
                 emptyStateView
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(filteredExpenses.prefix(5).enumerated()), id: \.element.id) {
+                    ForEach(Array(filteredExpenses.prefix(4).enumerated()), id: \.element.id) {
                         index, expense in
                         NavigationLink(destination: ExpenseDetailView(expense: expense)) {
                             ExpenseRow(expense: expense)
                         }
                         .buttonStyle(.plain)
 
-                        if index < min(4, filteredExpenses.count - 1) {
+                        if index < min(3, filteredExpenses.count - 1) {
                             Divider()
                                 .padding(.leading, 60)
                         }
@@ -270,6 +272,50 @@ struct DashboardView: View {
                 .cornerRadius(20)
                 .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
             }
+        }
+    }
+
+    private var uploadSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Importa Transazioni")
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.spendyText)
+
+            NavigationLink(destination: UploadView()) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.spendyPrimary.opacity(0.1))
+                            .frame(width: 50, height: 50)
+
+                        Image(systemName: "doc.badge.plus")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundStyle(Color.spendyGradient)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Carica CSV Bancario")
+                            .font(.headline)
+                            .foregroundColor(.spendyText)
+
+                        Text("Importa le transazioni dalla tua banca")
+                            .font(.subheadline)
+                            .foregroundColor(.spendySecondaryText)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.spendySecondaryText)
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(20)
+                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+            }
+            .buttonStyle(.plain)
         }
     }
 

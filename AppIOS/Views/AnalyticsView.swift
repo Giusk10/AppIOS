@@ -15,7 +15,7 @@ struct AnalyticsView: View {
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
+                    LazyVStack(spacing: 24) {
                         if viewModel.isLoading {
                             loadingView
                         } else if let error = viewModel.errorMessage {
@@ -31,7 +31,7 @@ struct AnalyticsView: View {
                         }
                     }
                     .padding(.vertical, 20)
-                    .padding(.bottom, 60)
+                    .padding(.bottom, 100)
                 }
             }
             .navigationTitle("Analytics")
