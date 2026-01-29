@@ -81,6 +81,9 @@ class AuthManager: ObservableObject {
 
         if pin == storedPin {
             self.authState = .authenticated
+            Task {
+                await fetchUserProfile()
+            }
             return true
         }
         return false
@@ -106,6 +109,9 @@ class AuthManager: ObservableObject {
                     self.isBiometricAuthenticationInProgress = false
                     if success {
                         self.authState = .authenticated
+                        Task {
+                            await self.fetchUserProfile()
+                        }
                     } else {
                         // Failed, stay locked (user can use PIN)
                         print("Biometric auth failed")
@@ -214,21 +220,57 @@ class AuthManager: ObservableObject {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
+        print("📡 [AUTH] Fetching user profile...")
+
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                 let user = try JSONDecoder().decode(User.self, from: data)
+                print("✅ [AUTH] Profile fetched successfully: \(user.username)")
                 await MainActor.run {
                     self.currentUser = user
                 }
             } else {
                 print(
-                    "Failed to fetch profile: \(String(data: data, encoding: .utf8) ?? "Unknown error")"
+                    "⚠️ [AUTH] Failed to fetch profile: \(String(data: data, encoding: .utf8) ?? "Unknown error")"
                 )
             }
         } catch {
-            print("Error fetching profile: \(error)")
+            print("❌ [AUTH] Error fetching profile: \(error)")
+        }
+    }
+
+    func updateProfile(name: String, surname: String) async -> Bool {
+        guard let url = URL(string: "\(baseURL)/updateProfile") else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = getAccessToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let body: [String: String] = ["name": name, "surname": surname]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                // Refresh profile to get updated data (and confirm save)
+                await fetchUserProfile()
+                return true
+            } else {
+                print(
+                    "Failed to update profile: \(String(data: data, encoding: .utf8) ?? "Unknown error")"
+                )
+                return false
+            }
+        } catch {
+            print("Error updating profile: \(error)")
+            return false
         }
     }
 

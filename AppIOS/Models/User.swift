@@ -1,6 +1,6 @@
 import Foundation
 
-struct User: Codable, Identifiable {
+struct User: Codable, Identifiable, Equatable {
     let id: String?  // Assuming backend might send an ID, but it's not strictly required by the prompt
     let username: String
     let email: String

@@ -4,15 +4,21 @@ struct UserProfileView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var authManager = AuthManager.shared
 
+    @State private var name: String = ""
+    @State private var surname: String = ""
+    @State private var isLoading: Bool = false
+
     var body: some View {
         NavigationView {
             ZStack {
                 Color.spendyBackground.ignoresSafeArea()
 
                 VStack(spacing: 30) {
+                    Spacer().frame(height: 20)  // Add top spacing as requested
+
                     if let user = authManager.currentUser {
                         // User Setup
-                        VStack(spacing: 16) {
+                        VStack(spacing: 20) {
                             ZStack {
                                 Circle()
                                     .fill(Color.spendyPrimary.opacity(0.1))
@@ -23,26 +29,57 @@ struct UserProfileView: View {
                                     .foregroundStyle(Color.spendyGradient)
                             }
 
-                            VStack(spacing: 8) {
-                                Text(user.fullName)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.spendyText)
+                            VStack(spacing: 16) {
+                                // Editable Fields
+                                VStack(spacing: 12) {
+                                    CustomTextField(
+                                        icon: "person", placeholder: "Nome", text: $name)
+                                    CustomTextField(
+                                        icon: "person", placeholder: "Cognome", text: $surname)
+                                }
+                                .padding(.horizontal, 20)
 
-                                Text(user.email)
-                                    .font(.subheadline)
-                                    .foregroundColor(.spendySecondaryText)
+                                // Read-only info
+                                VStack(spacing: 4) {
+                                    Text(user.email)
+                                        .font(.subheadline)
+                                        .foregroundColor(.spendySecondaryText)
 
-                                Text("@\(user.username)")
-                                    .font(.caption)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 4)
-                                    .background(Color.spendyPrimary.opacity(0.1))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.spendyPrimary)
+                                    Text("@\(user.username)")
+                                        .font(.caption)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 4)
+                                        .background(Color.spendyPrimary.opacity(0.1))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.spendyPrimary)
+                                }
+
+                                Button(action: {
+                                    saveProfile()
+                                }) {
+                                    if isLoading {
+                                        ProgressView()
+                                            .tint(.white)
+                                    } else {
+                                        Text("Salva Modifiche")
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    hasChanges(user: user)
+                                        ? AnyView(Color.spendyGradient)
+                                        : AnyView(Color.gray.opacity(0.3))
+                                )
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                                .padding(.horizontal, 20)
+                                .disabled(!hasChanges(user: user) || isLoading)
+                                .animation(.easeInOut, value: hasChanges(user: user))
                             }
                         }
-                        .padding(.top, 40)
+                        .padding(.top, 20)
                     } else {
                         ProgressView()
                             .onAppear {
@@ -64,27 +101,80 @@ struct UserProfileView: View {
                             Text("Esci")
                         }
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(.spendyRed)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.spendyRed)
+                        .background(Color.spendyRed.opacity(0.1))
                         .cornerRadius(16)
-                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
                     }
                     .padding(.horizontal, 30)
                     .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("Profilo")
-            .navigationBarTitleDisplayMode(.inline)
+
+            .navigationBarHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Chiudi") {
-                        dismiss()
+                        Task {
+                            await authManager.fetchUserProfile()
+                            await MainActor.run {
+                                dismiss()
+                            }
+                        }
                     }
                     .foregroundColor(.spendyPrimary)
                 }
             }
+            .onAppear {
+                if let user = authManager.currentUser {
+                    name = user.name
+                    surname = user.surname
+                }
+            }
+            .onChange(of: authManager.currentUser) { _, newUser in
+                if let user = newUser {
+                    if !isLoading {
+                        name = user.name
+                        surname = user.surname
+                    }
+                }
+            }
         }
+    }
+
+    private func hasChanges(user: User) -> Bool {
+        return name != user.name || surname != user.surname
+    }
+
+    private func saveProfile() {
+        guard !name.isEmpty, !surname.isEmpty else { return }
+
+        isLoading = true
+        Task {
+            _ = await authManager.updateProfile(name: name, surname: surname)
+            await MainActor.run {
+                isLoading = false
+            }
+        }
+    }
+}
+
+struct CustomTextField: View {
+    let icon: String
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(.spendySecondaryText)
+            TextField(placeholder, text: $text)
+                .foregroundColor(.spendyText)
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
