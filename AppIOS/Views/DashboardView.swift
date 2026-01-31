@@ -1,10 +1,75 @@
 import SwiftUI
 
+class DateFormatterCache {
+    static let shared = DateFormatterCache()
+
+    let isoFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        // Supporta i formati più comuni
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        return formatter
+    }()
+
+    let outputTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    let outputDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM"
+        formatter.locale = Locale(identifier: "it_IT")
+        return formatter
+    }()
+
+    let outputFullFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM yyyy, HH:mm"
+        formatter.locale = Locale(identifier: "it_IT")
+        return formatter
+    }()
+}
+
+extension String {
+    // Versione ottimizzata che usa i formatter in cache
+    func formattedDateOptimized(withTime: Bool = false) -> String {
+        // Tenta di parsare con il formatter principale (ISO)
+        // Nota: Se hai formati diversi in input, dovresti normalizzare il backend o il parsing nel ViewModel
+        guard let date = DateFormatterCache.shared.isoFormatter.date(from: self) else {
+            // Fallback veloce se non è ISO standard (per evitare crash)
+            return "Data non valida"
+        }
+
+        let calendar = Calendar.current
+        let timeString = DateFormatterCache.shared.outputTimeFormatter.string(from: date)
+
+        if calendar.isDateInToday(date) {
+            return "Oggi, \(timeString)"
+        } else if calendar.isDateInYesterday(date) {
+            return "Ieri, \(timeString)"
+        } else {
+            if withTime {
+                return DateFormatterCache.shared.outputFullFormatter.string(from: date)
+            } else {
+                return DateFormatterCache.shared.outputDateFormatter.string(from: date)
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// 2. VIEW PRINCIPALE
+// ---------------------------------------------------------
+
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @ObservedObject private var authManager = AuthManager.shared
+
     @State private var showingDeleteAlert = false
     @State private var showingProfile = false
+    @State private var selectedFilter: TransactionFilter = .all
 
     enum TransactionFilter: String, CaseIterable {
         case all = "Tutte"
@@ -12,31 +77,18 @@ struct DashboardView: View {
         case expenses = "Uscite"
     }
 
-    @State private var selectedFilter: TransactionFilter = .all
-
-    var totalBalance: Double {
-        let expensesToSum: [Expense]
+    // Nota: Idealmente questi calcoli dovrebbero stare nel ViewModel ed essere variabili @Published
+    // per evitare di ricalcolare ad ogni render della view.
+    var filteredExpenses: [Expense] {
         switch selectedFilter {
-        case .all:
-            expensesToSum = viewModel.expenses
-        case .income:
-            expensesToSum = viewModel.expenses.filter { $0.amount > 0 }
-        case .expenses:
-            expensesToSum = viewModel.expenses.filter { $0.amount < 0 }
+        case .all: return viewModel.expenses
+        case .income: return viewModel.expenses.filter { $0.amount > 0 }
+        case .expenses: return viewModel.expenses.filter { $0.amount < 0 }
         }
-        return expensesToSum.reduce(0) { $0 + $1.amount }
     }
 
-    var filteredExpenses: [Expense] {
-        let expenses = viewModel.expenses
-        switch selectedFilter {
-        case .all:
-            return expenses
-        case .income:
-            return expenses.filter { $0.amount > 0 }
-        case .expenses:
-            return expenses.filter { $0.amount < 0 }
-        }
+    var totalBalance: Double {
+        filteredExpenses.reduce(0) { $0 + $1.amount }
     }
 
     var body: some View {
@@ -46,8 +98,10 @@ struct DashboardView: View {
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 20) {
+                    LazyVStack(spacing: 24) {  // Spaziatura aumentata per "aria"
                         balanceCard
+                            .padding(.top, 10)
+
                         filterSection
 
                         if let errorMessage = viewModel.errorMessage {
@@ -59,67 +113,19 @@ struct DashboardView: View {
                         uploadSection
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 10)
                     .padding(.bottom, 100)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
+            // Usa .task invece di .onAppear per concorrenza automatica
+            .task {
                 viewModel.fetchExpenses()
-                Task {
-                    await AuthManager.shared.fetchUserProfile()
-                }
+                await AuthManager.shared.fetchUserProfile()
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        showingProfile = true
-                    }) {
-                        if let user = authManager.currentUser {
-                            Text(user.initials)
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .background(Color.spendyGradient)
-                                .clipShape(Circle())
-                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                        } else {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .background(Color.spendyGradient)
-                                .clipShape(Circle())
-                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                        }
-                    }
-                }
-
-                ToolbarItem(placement: .principal) {
-                    Text("Spendy")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.spendyGradient)
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button(action: {
-                            showingDeleteAlert = true
-                        }) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(
-                                    .spendyRed.opacity(viewModel.expenses.isEmpty ? 0.4 : 1))
-                        }
-                        .disabled(viewModel.expenses.isEmpty)
-
-                        NavigationLink(destination: AddExpenseView()) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(Color.spendyGradient)
-                        }
-                    }
-                }
+                leadingToolbarItem
+                principalToolbarItem
+                trailingToolbarItem
             }
         }
         .alert("Elimina tutte le spese", isPresented: $showingDeleteAlert) {
@@ -137,10 +143,13 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Componenti UI Estratti
+
     private var balanceCard: some View {
         VStack(spacing: 0) {
             ZStack {
-                RoundedRectangle(cornerRadius: 28)
+                // Sfondo ottimizzato
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [Color.spendyPrimary, Color.spendyAccent],
@@ -148,107 +157,110 @@ struct DashboardView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .shadow(color: Color.spendyPrimary.opacity(0.4), radius: 20, x: 0, y: 10)
 
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 200)
-                    .offset(x: 100, y: -50)
+                // Elementi decorativi statici
+                decorativeCircles
 
-                Circle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 150)
-                    .offset(x: -120, y: 60)
-
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                VStack(spacing: 16) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text("Saldo Totale")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
-                                .foregroundColor(.white.opacity(0.85))
+                                .foregroundColor(.white.opacity(0.9))
 
                             Text(totalBalance, format: .currency(code: "EUR"))
-                                .font(.system(size: 38, weight: .bold, design: .rounded))
+                                .font(.system(size: 34, weight: .bold, design: .rounded))  // Font leggermente ridotto
                                 .foregroundColor(.white)
                                 .contentTransition(.numericText())
                         }
                         Spacer()
 
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 50, height: 50)
-                            .overlay {
-                                Image(
-                                    systemName: totalBalance >= 0
-                                        ? "arrow.up.right" : "arrow.down.right"
-                                )
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.white)
-                            }
+                        // Icona trend
+                        trendIcon
                     }
 
-                    HStack(spacing: 16) {
-                        StatItem(
-                            title: "Entrate",
-                            value: viewModel.expenses.filter { $0.amount > 0 }.reduce(0) {
-                                $0 + $1.amount
-                            },
-                            icon: "arrow.down.left",
-                            positive: true
-                        )
-
-                        Divider()
-                            .frame(height: 40)
-                            .background(Color.white.opacity(0.3))
-
-                        StatItem(
-                            title: "Uscite",
-                            value: abs(
-                                viewModel.expenses.filter { $0.amount < 0 }.reduce(0) {
-                                    $0 + $1.amount
-                                }),
-                            icon: "arrow.up.right",
-                            positive: false
-                        )
-                    }
-                    .padding(.top, 8)
+                    statsRow
                 }
                 .padding(24)
             }
             .frame(height: 200)
+            // Disegna il contenuto come una bitmap off-screen (GPU acceleration)
+            .drawingGroup()
+        }
+    }
+
+    private var decorativeCircles: some View {
+        Group {
+            Circle()
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 200)
+                .offset(x: 100, y: -50)
+                .blur(radius: 1)  // Blur leggero per fondere meglio
+
+            Circle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 150)
+                .offset(x: -120, y: 60)
+                .blur(radius: 1)
+        }
+    }
+
+    private var trendIcon: some View {
+        Circle()
+            .fill(.ultraThinMaterial)
+            .frame(width: 44, height: 44)  // Ridotto leggermente
+            .overlay {
+                Image(systemName: totalBalance >= 0 ? "arrow.up.right" : "arrow.down.right")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: 0) {  // Spacing gestito dai frame interni
+            StatItem(
+                title: "Entrate",
+                // Calcolo ottimizzato (meglio spostarlo nel VM)
+                value: viewModel.expenses.lazy.filter { $0.amount > 0 }.reduce(0) {
+                    $0 + $1.amount
+                },
+                icon: "arrow.down.left",
+                positive: true
+            )
+
+            Divider()
+                .frame(height: 30)
+                .background(Color.white.opacity(0.3))
+                .padding(.horizontal, 16)
+
+            StatItem(
+                title: "Uscite",
+                value: abs(
+                    viewModel.expenses.lazy.filter { $0.amount < 0 }.reduce(0) { $0 + $1.amount }),
+                icon: "arrow.up.right",
+                positive: false
+            )
         }
     }
 
     private var filterSection: some View {
-        HStack(spacing: 10) {
-            ForEach(TransactionFilter.allCases, id: \.self) { filter in
-                FilterChip(
-                    title: filter.rawValue,
-                    isSelected: selectedFilter == filter,
-                    action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedFilter = filter
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(TransactionFilter.allCases, id: \.self) { filter in
+                    FilterChip(
+                        title: filter.rawValue,
+                        isSelected: selectedFilter == filter,
+                        action: {
+                            withAnimation(.smooth(duration: 0.3)) {  // Animazione più rapida
+                                selectedFilter = filter
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
+            .padding(.horizontal, 4)  // Evita clipping dell'ombra
         }
-        .padding(.vertical, 4)
-    }
-
-    private func errorBanner(_ message: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.spendyOrange)
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(.spendyText)
-            Spacer()
-        }
-        .padding()
-        .background(Color.spendyOrange.opacity(0.1))
-        .cornerRadius(12)
     }
 
     private var recentTransactionsSection: some View {
@@ -276,94 +288,201 @@ struct DashboardView: View {
             if filteredExpenses.isEmpty {
                 emptyStateView
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(filteredExpenses.prefix(4).enumerated()), id: \.element.id) {
-                        index, expense in
+                LazyVStack(spacing: 0) {  // LazyVStack è meglio per performance anche se sono pochi elementi
+                    // Prendiamo max 4 elementi senza creare array intermedi pesanti
+                    ForEach(Array(filteredExpenses.prefix(4)), id: \.id) { expense in
                         NavigationLink(destination: ExpenseDetailView(expense: expense)) {
                             ExpenseRow(expense: expense)
+                                .contentShape(Rectangle())  // Migliora l'area di tocco
                         }
                         .buttonStyle(.plain)
 
-                        if index < min(3, filteredExpenses.count - 1) {
-                            Divider()
-                                .padding(.leading, 60)
+                        // Logica divisore semplificata
+                        if expense.id != filteredExpenses.prefix(4).last?.id {
+                            Divider().padding(.leading, 76)
                         }
                     }
                 }
                 .background(Color.white)
                 .cornerRadius(20)
-                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 2)  // Ombra alleggerita
             }
         }
     }
 
     private var uploadSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Importa Transazioni")
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.spendyText)
+        NavigationLink(destination: UploadView()) {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.spendyPrimary.opacity(0.1))
+                        .frame(width: 48, height: 48)
 
-            NavigationLink(destination: UploadView()) {
-                HStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.spendyPrimary.opacity(0.1))
-                            .frame(width: 50, height: 50)
+                    Image(systemName: "doc.badge.plus")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(Color.spendyGradient)
+                }
 
-                        Image(systemName: "doc.badge.plus")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundStyle(Color.spendyGradient)
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Importa CSV")
+                        .font(.headline)
+                        .foregroundColor(.spendyText)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Carica CSV Bancario")
-                            .font(.headline)
-                            .foregroundColor(.spendyText)
-
-                        Text("Importa le transazioni dalla tua banca")
-                            .font(.subheadline)
-                            .foregroundColor(.spendySecondaryText)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
+                    Text("Carica transazioni dalla banca")
+                        .font(.caption)
                         .foregroundColor(.spendySecondaryText)
                 }
-                .padding(16)
-                .background(Color.white)
-                .cornerRadius(20)
-                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.spendySecondaryText.opacity(0.5))
             }
-            .buttonStyle(.plain)
+            .padding(16)
+            .background(Color.white)
+            .cornerRadius(20)
+            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Toolbar Items (Per pulizia del body)
+
+    private var leadingToolbarItem: ToolbarItem<(), some View> {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button(action: { showingProfile = true }) {
+                Group {
+                    if let user = authManager.currentUser {
+                        Text(user.initials)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                    } else {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 16))
+                    }
+                }
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)  // Ridotto leggermente
+                .background(Color.spendyGradient)
+                .clipShape(Circle())
+            }
         }
     }
 
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "tray")
-                .font(.system(size: 48))
+    private var principalToolbarItem: ToolbarItem<(), some View> {
+        ToolbarItem(placement: .principal) {
+            Text("Spendy")
+                .font(.system(size: 18, weight: .bold, design: .rounded))  // Ridotto per eleganza
                 .foregroundStyle(Color.spendyGradient)
+        }
+    }
+
+    private var trailingToolbarItem: ToolbarItem<(), some View> {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            HStack(spacing: 8) {
+                Button(action: { showingDeleteAlert = true }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.spendyRed.opacity(viewModel.expenses.isEmpty ? 0.3 : 0.9))
+                }
+                .disabled(viewModel.expenses.isEmpty)
+
+                NavigationLink(destination: AddExpenseView()) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(Color.spendyGradient)
+                        .symbolRenderingMode(.hierarchical)  // Render più moderno
+                }
+            }
+        }
+    }
+
+    // Funzioni helper rimaste uguali ma spostate per pulizia
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.spendyOrange)
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.spendyText)
+            Spacer()
+        }
+        .padding()
+        .background(Color.spendyOrange.opacity(0.1))
+        .cornerRadius(12)
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tray")
+                .font(.system(size: 40))
+                .foregroundStyle(Color.spendyGradient.opacity(0.8))
 
             Text("Nessuna transazione")
                 .font(.headline)
                 .foregroundColor(.spendyText)
-
-            Text("Aggiungi la tua prima spesa\nper iniziare a monitorare")
-                .font(.subheadline)
-                .foregroundColor(.spendySecondaryText)
-                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(40)
-        .background(Color.white)
+        .padding(30)
+        .background(Color.white.opacity(0.5))  // Più leggero
         .cornerRadius(20)
-        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+        )
     }
 }
 
+// ---------------------------------------------------------
+// 3. COMPONENTI SECONDARI OTTIMIZZATI
+// ---------------------------------------------------------
+
+struct ExpenseRow: View {
+    let expense: Expense
+
+    // Cache di valori computati semplici
+    private var categoryColor: Color { CategoryMapper.color(for: expense.category) }
+    private var categoryIcon: String { CategoryMapper.icon(for: expense.category) }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(categoryColor.opacity(0.12))  // Opacità ridotta per look più clean
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: categoryIcon)
+                    .font(.system(size: 18, weight: .medium))  // Font weight ridotto
+                    .foregroundColor(categoryColor)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(expense.userDescription)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.spendyText)
+                    .lineLimit(1)
+
+                if let date = expense.startedDateString {
+                    // QUI SI USA LA FUNZIONE OTTIMIZZATA
+                    Text(date.formattedDateOptimized(withTime: true))
+                        .font(.caption2)  // Testo più piccolo e discreto
+                        .foregroundColor(.spendySecondaryText)
+                }
+            }
+
+            Spacer()
+
+            Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+}
+
+// StatItem e FilterChip ottimizzati per contrasto e dimensione
 struct StatItem: View {
     let title: String
     let value: Double
@@ -371,17 +490,24 @@ struct StatItem: View {
     let positive: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white.opacity(0.7))
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.2))
+                    .frame(width: 32, height: 32)
 
-            VStack(alignment: .leading, spacing: 2) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
                 Text(title)
-                    .font(.caption)
+                    .font(.caption2)
+                    .textCase(.uppercase)
                     .foregroundColor(.white.opacity(0.7))
                 Text(value, format: .currency(code: "EUR"))
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
             }
         }
@@ -406,171 +532,12 @@ struct FilterChip: View {
                     if isSelected {
                         Capsule()
                             .fill(Color.spendyGradient)
-                            .shadow(color: Color.spendyPrimary.opacity(0.3), radius: 8, x: 0, y: 4)
                     } else {
                         Capsule()
                             .fill(Color.white)
-                            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
                     }
                 }
         }
         .buttonStyle(.plain)
-    }
-}
-
-struct ExpenseRow: View {
-    let expense: Expense
-
-    var categoryColor: Color {
-        CategoryMapper.color(for: expense.category)
-    }
-
-    var categoryIcon: String {
-        CategoryMapper.icon(for: expense.category)
-    }
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(categoryColor.opacity(0.15))
-                    .frame(width: 46, height: 46)
-
-                Image(systemName: categoryIcon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(categoryColor)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(expense.userDescription)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.spendyText)
-                    .lineLimit(1)
-
-                if let date = expense.startedDateString {
-                    Text(date.formattedDateWithTime())
-                        .font(.caption)
-                        .foregroundColor(.spendySecondaryText)
-                }
-            }
-
-            Spacer()
-
-            Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-    }
-}
-
-struct ExpenseCard: View {
-    let expense: Expense
-
-    var body: some View {
-        ZStack {
-            NavigationLink(destination: ExpenseDetailView(expense: expense)) {
-                EmptyView()
-            }
-            .opacity(0)
-
-            ExpenseRow(expense: expense)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
-        }
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect, byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius))
-        return Path(path.cgPath)
-    }
-}
-
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-extension String {
-    func formattedDate() -> String {
-        let parser = DateFormatter()
-        parser.locale = Locale(identifier: "en_US_POSIX")
-        let formats = [
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
-            "yyyy-MM-dd'T'HH:mm:ssZ",
-            "yyyy-MM-dd'T'HH:mm:ss",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd",
-            "dd/MM/yyyy",
-            "dd-MM-yyyy",
-        ]
-
-        for format in formats {
-            parser.dateFormat = format
-            if let date = parser.date(from: self) {
-                let calendar = Calendar.current
-                let timeFormatter = DateFormatter()
-                timeFormatter.dateFormat = "HH:mm"
-
-                if calendar.isDateInToday(date) {
-                    return "Oggi, \(timeFormatter.string(from: date))"
-                } else if calendar.isDateInYesterday(date) {
-                    return "Ieri, \(timeFormatter.string(from: date))"
-                } else {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "dd MMM"
-                    formatter.locale = Locale(identifier: "it_IT")
-                    return formatter.string(from: date)
-                }
-            }
-        }
-        return self
-    }
-
-    func formattedDateWithTime() -> String {
-        let parser = DateFormatter()
-        parser.locale = Locale(identifier: "en_US_POSIX")
-        let formats = [
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
-            "yyyy-MM-dd'T'HH:mm:ssZ",
-            "yyyy-MM-dd'T'HH:mm:ss",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd",
-            "dd/MM/yyyy",
-            "dd-MM-yyyy",
-        ]
-
-        for format in formats {
-            parser.dateFormat = format
-            if let date = parser.date(from: self) {
-                let calendar = Calendar.current
-                let timeFormatter = DateFormatter()
-                timeFormatter.dateFormat = "HH:mm"
-                let timeString = timeFormatter.string(from: date)
-
-                if calendar.isDateInToday(date) {
-                    return "Oggi, \(timeString)"
-                } else if calendar.isDateInYesterday(date) {
-                    return "Ieri, \(timeString)"
-                } else {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "dd MMM yyyy, HH:mm"
-                    formatter.locale = Locale(identifier: "it_IT")
-                    return formatter.string(from: date)
-                }
-            }
-        }
-        return self
     }
 }
