@@ -1,63 +1,11 @@
+//
+//  DashboardView.swift
+//  Spendy
+//
+//  Created by User on 20/09/23.
+//
+
 import SwiftUI
-
-class DateFormatterCache {
-    static let shared = DateFormatterCache()
-
-    let isoFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        // Supporta i formati più comuni
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        return formatter
-    }()
-
-    let outputTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
-    let outputDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM"
-        formatter.locale = Locale(identifier: "it_IT")
-        return formatter
-    }()
-
-    let outputFullFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM yyyy, HH:mm"
-        formatter.locale = Locale(identifier: "it_IT")
-        return formatter
-    }()
-}
-
-extension String {
-    // Versione ottimizzata che usa i formatter in cache
-    func formattedDateOptimized(withTime: Bool = false) -> String {
-        // Tenta di parsare con il formatter principale (ISO)
-        // Nota: Se hai formati diversi in input, dovresti normalizzare il backend o il parsing nel ViewModel
-        guard let date = DateFormatterCache.shared.isoFormatter.date(from: self) else {
-            // Fallback veloce se non è ISO standard (per evitare crash)
-            return "Data non valida"
-        }
-
-        let calendar = Calendar.current
-        let timeString = DateFormatterCache.shared.outputTimeFormatter.string(from: date)
-
-        if calendar.isDateInToday(date) {
-            return "Oggi, \(timeString)"
-        } else if calendar.isDateInYesterday(date) {
-            return "Ieri, \(timeString)"
-        } else {
-            if withTime {
-                return DateFormatterCache.shared.outputFullFormatter.string(from: date)
-            } else {
-                return DateFormatterCache.shared.outputDateFormatter.string(from: date)
-            }
-        }
-    }
-}
 
 // ---------------------------------------------------------
 // 2. VIEW PRINCIPALE
@@ -463,9 +411,9 @@ struct ExpenseRow: View {
                     .foregroundColor(.spendyText)
                     .lineLimit(1)
 
-                if let date = expense.startedDateString {
-                    // QUI SI USA LA FUNZIONE OTTIMIZZATA
-                    Text(date.formattedDateOptimized(withTime: true))
+                if let date = expense.date {
+                    // QUI SI USA L'ESTENSIONE DI DATE
+                    Text(date.formattedDescription(withTime: true))
                         .font(.caption2)  // Testo più piccolo e discreto
                         .foregroundColor(.spendySecondaryText)
                 }

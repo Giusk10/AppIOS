@@ -101,7 +101,7 @@ struct ExpenseDetailView: View {
                         .foregroundColor(.spendySecondaryText)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
-                        .accentColor(.spendyPrimary)
+                        .accentColor(Color.spendyPrimary)
                 } else {
                     Text(description.isEmpty ? "Spesa senza nome" : description.uppercased())
                         .font(.system(size: 14, weight: .bold))
@@ -152,9 +152,9 @@ struct ExpenseDetailView: View {
                     if isEditing {
                         DatePicker("", selection: $startedDate)
                             .labelsHidden()
-                            .accentColor(.spendyPrimary)
+                            .accentColor(Color.spendyPrimary)
                     } else {
-                        Text(startedDate.formatted(date: .abbreviated, time: .shortened))
+                        Text(startedDate.formatted(.dateTime.day().month().year().hour().minute()))
                             .font(.body)
                             .fontWeight(.medium)
                             .foregroundColor(.spendyText)
@@ -228,32 +228,6 @@ struct ExpenseDetailView: View {
             .background(Color.white)
             .cornerRadius(16)
             .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
-
-            // Fonte
-            if !expense.product.isEmpty && expense.product != "Manual" {
-                HStack(spacing: 16) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundColor(.spendySecondaryText)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("FONTE")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.spendyTertiaryText)
-
-                        Text(expense.product)
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .foregroundColor(.spendySecondaryText)
-                    }
-                    Spacer()
-                }
-                .padding(16)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
-            }
         }
     }
 
