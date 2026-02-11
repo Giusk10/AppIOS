@@ -154,7 +154,7 @@ struct ExpenseDetailView: View {
                             .labelsHidden()
                             .accentColor(Color.spendyPrimary)
                     } else {
-                        Text(startedDate.formatted(.dateTime.day().month().year().hour().minute()))
+                        Text(startedDate.formattedDescription(withTime: true))
                             .font(.body)
                             .fontWeight(.medium)
                             .foregroundColor(.spendyText)

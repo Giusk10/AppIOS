@@ -15,6 +15,13 @@ extension Date {
         return formatter
     }()
 
+    private static let currentYearFullDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM, HH:mm"
+        formatter.locale = Locale(identifier: "it_IT")
+        return formatter
+    }()
+
     private static let fullDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd MMM yyyy, HH:mm"
@@ -32,7 +39,13 @@ extension Date {
             return "Ieri, \(timeString)"
         } else {
             if withTime {
-                return Date.fullDateFormatter.string(from: self)
+                // Se è l'anno corrente, nascondiamo l'anno
+                if calendar.component(.year, from: self) == calendar.component(.year, from: Date())
+                {
+                    return Date.currentYearFullDateFormatter.string(from: self)
+                } else {
+                    return Date.fullDateFormatter.string(from: self)
+                }
             } else {
                 return Date.shortDateFormatter.string(from: self)
             }
