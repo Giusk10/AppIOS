@@ -26,6 +26,11 @@ struct ExpenseDetailView: View {
             Color.spendyBackground
                 .ignoresSafeArea()
 
+            Color.spendyMeshGradient
+                .opacity(0.12)
+                .ignoresSafeArea()
+                .blur(radius: 40)
+
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     amountHeader
@@ -45,7 +50,7 @@ struct ExpenseDetailView: View {
                         .opacity(animateContent ? 1 : 0)
                         .offset(y: animateContent ? 0 : 40)
                 }
-                .padding(20)
+                .padding(24)
                 .padding(.bottom, 40)
             }
         }
@@ -76,29 +81,32 @@ struct ExpenseDetailView: View {
     }
 
     private var amountHeader: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(categoryColor.opacity(0.1))
-                    .frame(width: 72, height: 72)
+                    .fill(categoryColor.opacity(0.08))
+                    .frame(width: 80, height: 80)
 
                 Image(systemName: categoryIcon)
-                    .font(.system(size: 32, weight: .semibold))
+                    .font(.system(size: 36, weight: .semibold))
                     .foregroundColor(categoryColor)
+                    .shadow(color: categoryColor.opacity(0.2), radius: 8, x: 0, y: 4)
             }
-            .padding(.top, 8)
+            .padding(.top, 10)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 if isEditing {
                     TextField("Cosa hai comprato?", text: $description)
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
                         .foregroundColor(.spendySecondaryText)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
+                        .accentColor(.spendyPrimary)
                 } else {
-                    Text(description.isEmpty ? "Spesa senza nome" : description)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.spendySecondaryText)
+                    Text(description.isEmpty ? "Spesa senza nome" : description.uppercased())
+                        .font(.system(size: 14, weight: .bold))
+                        .tracking(1.5)
+                        .foregroundColor(.spendyTertiaryText)
                 }
 
                 if isEditing {
@@ -110,90 +118,143 @@ struct ExpenseDetailView: View {
                         TextField(
                             "0.00", value: $amount, format: .number.precision(.fractionLength(2))
                         )
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
                         .foregroundColor(.spendyText)
                         .keyboardType(.decimalPad)
                         .fixedSize()
+                        .accentColor(Color.spendyPrimary)
                     }
                 } else {
-                    Text(amount, format: .currency(code: expense.currency ?? "EUR"))
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                    Text(abs(amount), format: .currency(code: expense.currency ?? "EUR"))
+                        .font(.system(size: 64, weight: .bold, design: .rounded))
                         .foregroundColor(.spendyText)
                 }
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
-        .background(Color.white)
-        .cornerRadius(28)
-        .shadow(color: Color.black.opacity(0.03), radius: 15, x: 0, y: 5)
+        .padding(.vertical, 20)
     }
 
     private var detailsCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            DetailRow(label: "Data transazione", icon: "calendar") {
-                if isEditing {
-                    DatePicker(
-                        "", selection: $startedDate, displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .labelsHidden()
-                } else {
-                    Text(startedDate.formatted(date: .abbreviated, time: .shortened))
-                        .fontWeight(.semibold)
-                        .foregroundColor(.spendyText)
-                }
-            }
-            .padding(20)
+        VStack(spacing: 20) {
+            // Data e Ora
+            HStack(spacing: 16) {
+                Image(systemName: "calendar")
+                    .foregroundColor(Color.spendyAccent)
+                    .frame(width: 24)
 
-            Divider().padding(.horizontal, 20)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("DATA E ORA")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.spendyTertiaryText)
 
-            if let cat = expense.category {
-                DetailRow(label: "Categoria", icon: "tag.fill") {
-                    Text(cat)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(categoryColor)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(categoryColor.opacity(0.1))
-                        .cornerRadius(8)
-                }
-                .padding(20)
-
-                Divider().padding(.horizontal, 20)
-            }
-
-            DetailRow(label: "Metodo", icon: "creditcard.fill") {
-                if isEditing {
-                    Picker("Tipo", selection: $type) {
-                        Text("Carta").tag("Carta")
-                        Text("Pagamento con carta").tag("Pagamento con carta")
-                        Text("Ricarica").tag("Ricarica")
-                        Text("Manuale").tag("Manuale")
+                    if isEditing {
+                        DatePicker("", selection: $startedDate)
+                            .labelsHidden()
+                            .accentColor(.spendyPrimary)
+                    } else {
+                        Text(startedDate.formatted(date: .abbreviated, time: .shortened))
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .foregroundColor(.spendyText)
                     }
-                    .pickerStyle(.menu)
-                    .tint(.spendyPrimary)
-                } else {
-                    Text(type == "Pagamento con carta" ? "Carta" : type)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.spendyText)
                 }
+                Spacer()
             }
-            .padding(20)
+            .padding(16)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
 
-            if !expense.product.isEmpty {
-                Divider().padding(.horizontal, 20)
+            // Categoria (sempre visibile se presente)
+            if let cat = expense.category {
+                HStack(spacing: 16) {
+                    Image(systemName: "tag.fill")
+                        .foregroundColor(categoryColor)
+                        .frame(width: 24)
 
-                DetailRow(label: "Fonte", icon: "info.circle.fill") {
-                    Text(expense.product)
-                        .fontWeight(.medium)
-                        .foregroundColor(.spendySecondaryText)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("CATEGORIA")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.spendyTertiaryText)
+
+                        Text(cat)
+                            .font(.body)
+                            .fontWeight(.bold)
+                            .foregroundColor(categoryColor)
+                    }
+                    Spacer()
                 }
-                .padding(20)
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
+            }
+
+            // Metodo
+            HStack(spacing: 16) {
+                Image(systemName: "creditcard.fill")
+                    .foregroundColor(.spendyPrimary)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("METODO")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.spendyTertiaryText)
+
+                    if isEditing {
+                        Picker("", selection: $type) {
+                            Text("Carta").tag("Carta")
+                            Text("Pagamento con carta").tag("Pagamento con carta")
+                            Text("Ricarica").tag("Ricarica")
+                            Text("Manuale").tag("Manuale")
+                        }
+                        .pickerStyle(.menu)
+                        .tint(.spendyPrimary)
+                        .offset(x: -8)
+                    } else {
+                        Text(type == "Pagamento con carta" ? "Carta" : type)
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .foregroundColor(.spendyText)
+                    }
+                }
+                Spacer()
+            }
+            .padding(16)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
+
+            // Fonte
+            if !expense.product.isEmpty && expense.product != "Manual" {
+                HStack(spacing: 16) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.spendySecondaryText)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("FONTE")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.spendyTertiaryText)
+
+                        Text(expense.product)
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .foregroundColor(.spendySecondaryText)
+                    }
+                    Spacer()
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
             }
         }
-        .background(Color.white)
-        .cornerRadius(24)
-        .shadow(color: Color.black.opacity(0.03), radius: 15, x: 0, y: 5)
     }
 
     private var saveButton: some View {
@@ -218,17 +279,16 @@ struct ExpenseDetailView: View {
         Button(action: deleteExpense) {
             HStack(spacing: 8) {
                 Image(systemName: "trash")
-                    .font(.system(size: 16))
-                Text("Elimina Spesa")
+                    .font(.system(size: 14))
+                Text("Elimina transazione")
                     .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .fontWeight(.medium)
             }
-            .foregroundColor(.spendyRed)
+            .foregroundColor(.spendyRed.opacity(0.8))
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Color.spendyRed.opacity(0.1))
-            .cornerRadius(14)
         }
+        .padding(.top, 8)
     }
 
     private func initializeFields() {
