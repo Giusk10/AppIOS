@@ -44,11 +44,10 @@ struct ExpenseDetailView: View {
                     if isEditing {
                         saveButton
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    } else {
+                        deleteButton
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
-
-                    deleteButton
-                        .opacity(animateContent ? 1 : 0)
-                        .offset(y: animateContent ? 0 : 40)
                 }
                 .padding(24)
                 .padding(.bottom, 40)
@@ -110,22 +109,6 @@ struct ExpenseDetailView: View {
                 }
 
                 if isEditing {
-                    DatePicker("", selection: $startedDate)
-                        .labelsHidden()
-                        .colorMultiply(.spendyText)  // Maintains consistent color
-                        .accentColor(Color.spendyPrimary)
-                        .scaleEffect(0.9)  // Slightly smaller
-                } else {
-                    Text(
-                        startedDate.formattedDescription(
-                            withTime: Calendar.current.component(.year, from: startedDate)
-                                == Calendar.current.component(.year, from: Date()))
-                    )
-                    .font(.system(size: 16, weight: .regular, design: .rounded))
-                    .foregroundColor(Color.spendySecondaryText)
-                }
-
-                if isEditing {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("€")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
@@ -144,7 +127,7 @@ struct ExpenseDetailView: View {
                                 }
                             ), format: .number.precision(.fractionLength(2))
                         )
-                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundColor(.spendyText)
                         .keyboardType(.decimalPad)
                         .fixedSize()
@@ -152,8 +135,24 @@ struct ExpenseDetailView: View {
                     }
                 } else {
                     Text(amount, format: .currency(code: expense.currency ?? "EUR"))
-                        .font(.system(size: 64, weight: .bold, design: .rounded))
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
                         .foregroundColor(.spendyText)
+                }
+
+                if isEditing {
+                    DatePicker("", selection: $startedDate)
+                        .labelsHidden()
+                        .colorMultiply(.spendyText)  // Maintains consistent color
+                        .accentColor(Color.spendyPrimary)
+                        .scaleEffect(0.9)  // Slightly smaller
+                } else {
+                    Text(
+                        startedDate.formattedDescription(
+                            withTime: Calendar.current.component(.year, from: startedDate)
+                                == Calendar.current.component(.year, from: Date()))
+                    )
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundColor(Color.spendySecondaryText)
                 }
             }
         }
@@ -250,17 +249,19 @@ struct ExpenseDetailView: View {
     private var deleteButton: some View {
         Button(action: deleteExpense) {
             HStack(spacing: 8) {
-                Image(systemName: "trash")
-                    .font(.system(size: 14))
+                Image(systemName: "trash.fill")
+                    .font(.system(size: 18))
                 Text("Elimina transazione")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.headline)
+                    .fontWeight(.bold)
             }
-            .foregroundColor(.spendyRed.opacity(0.8))
-            .padding(.vertical, 12)
+            .foregroundColor(.white)
             .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(Color.spendyRed.opacity(0.9))
+            .cornerRadius(16)
+            .shadow(color: Color.spendyRed.opacity(0.3), radius: 10, x: 0, y: 5)
         }
-        .padding(.top, 8)
     }
 
     private func initializeFields() {
