@@ -110,13 +110,39 @@ struct ExpenseDetailView: View {
                 }
 
                 if isEditing {
+                    DatePicker("", selection: $startedDate)
+                        .labelsHidden()
+                        .colorMultiply(.spendyText)  // Maintains consistent color
+                        .accentColor(Color.spendyPrimary)
+                        .scaleEffect(0.9)  // Slightly smaller
+                } else {
+                    Text(
+                        startedDate.formattedDescription(
+                            withTime: Calendar.current.component(.year, from: startedDate)
+                                == Calendar.current.component(.year, from: Date()))
+                    )
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundColor(Color.spendySecondaryText)
+                }
+
+                if isEditing {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("€")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
                             .foregroundColor(.spendyText)
 
                         TextField(
-                            "0.00", value: $amount, format: .number.precision(.fractionLength(2))
+                            "0.00",
+                            value: Binding(
+                                get: { abs(amount) },
+                                set: { newValue in
+                                    if amount < 0 {
+                                        amount = -abs(newValue)
+                                    } else {
+                                        amount = abs(newValue)
+                                    }
+                                }
+                            ), format: .number.precision(.fractionLength(2))
                         )
                         .font(.system(size: 56, weight: .bold, design: .rounded))
                         .foregroundColor(.spendyText)
@@ -125,7 +151,7 @@ struct ExpenseDetailView: View {
                         .accentColor(Color.spendyPrimary)
                     }
                 } else {
-                    Text(abs(amount), format: .currency(code: expense.currency ?? "EUR"))
+                    Text(amount, format: .currency(code: expense.currency ?? "EUR"))
                         .font(.system(size: 64, weight: .bold, design: .rounded))
                         .foregroundColor(.spendyText)
                 }
@@ -137,35 +163,7 @@ struct ExpenseDetailView: View {
 
     private var detailsCard: some View {
         VStack(spacing: 20) {
-            // Data e Ora
-            HStack(spacing: 16) {
-                Image(systemName: "calendar")
-                    .foregroundColor(Color.spendyAccent)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("DATA E ORA")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.spendyTertiaryText)
-
-                    if isEditing {
-                        DatePicker("", selection: $startedDate)
-                            .labelsHidden()
-                            .accentColor(Color.spendyPrimary)
-                    } else {
-                        Text(startedDate.formattedDescription(withTime: true))
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .foregroundColor(.spendyText)
-                    }
-                }
-                Spacer()
-            }
-            .padding(16)
-            .background(Color.white)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
+            // Data moved to Header
 
             // Categoria (sempre visibile se presente)
             if let cat = expense.category {
@@ -210,7 +208,7 @@ struct ExpenseDetailView: View {
                             Text("Carta").tag("Carta")
                             Text("Pagamento con carta").tag("Pagamento con carta")
                             Text("Ricarica").tag("Ricarica")
-                            Text("Manuale").tag("Manuale")
+                            Text("Contanti").tag("Contanti")
                         }
                         .pickerStyle(.menu)
                         .tint(.spendyPrimary)
@@ -270,12 +268,14 @@ struct ExpenseDetailView: View {
         amount = expense.amount
         category = expense.category ?? ""
         category = expense.category ?? ""
-        if ["Pagamento con carta", "Carta", "Ricarica", "Manuale", "Contanti"].contains(
+        if ["Pagamento con carta", "Carta", "Ricarica", "Contanti"].contains(
             expense.type)
         {
             type = expense.type
+        } else if expense.type == "Manuale" {
+            type = "Contanti"
         } else {
-            type = "Manuale"
+            type = "Contanti"
         }
         product = expense.product
 
